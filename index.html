@@ -14,14 +14,36 @@
             --nav-blue: #00d4ff;
         }
         
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #000; }
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #000; }
         
+        /* Game States */
+        .page {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            background: radial-gradient(circle at center, #1a1a3a 0%, #050510 100%);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .page.active { display: flex; }
+
+        /* UI Elements */
         #game-ui {
             position: fixed;
             top: 20px; left: 20px; right: 20px;
             z-index: 999;
             pointer-events: none;
+            display: none;
         }
+
+        #game-ui.active { display: block; }
 
         .stat-container {
             background: rgba(10, 10, 26, 0.85);
@@ -39,7 +61,6 @@
         .label { font-size: 10px; text-transform: uppercase; letter-spacing: 2.5px; opacity: 0.6; margin-bottom: 4px; display: block; }
         .value { font-size: 24px; font-weight: 900; color: var(--neon-gold); line-height: 1; }
 
-        /* Character HUD Area */
         #character-hub {
             margin-top: 15px;
             display: flex;
@@ -48,8 +69,7 @@
         }
 
         .robot-avatar {
-            width: 60px;
-            height: 60px;
+            width: 60px; height: 60px;
             background: rgba(0, 212, 255, 0.1);
             border: 2px solid var(--nav-blue);
             border-radius: 12px;
@@ -91,8 +111,7 @@
         }
 
         .radar-scanner {
-            width: 45px;
-            height: 45px;
+            width: 45px; height: 45px;
             border: 1px solid rgba(255,204,0,0.3);
             border-radius: 50%;
             display: flex;
@@ -126,45 +145,45 @@
             100% { transform: scale(2.5); opacity: 0; }
         }
 
-        #setup-screen {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle at center, #1a1a3a 0%, #050510 100%);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            color: white;
-            padding: 40px;
-            text-align: center;
-        }
-
+        /* Buttons & Titles */
         .glitch-title {
-            font-size: 48px;
+            font-size: 56px;
             font-weight: 900;
             color: var(--neon-gold);
             margin: 0;
             text-transform: uppercase;
-            letter-spacing: -1px;
+            letter-spacing: -2px;
             line-height: 0.9;
             text-shadow: 0 0 20px rgba(255,204,0,0.5);
         }
 
-        .start-btn {
+        .action-btn {
             background: var(--neon-gold);
             color: var(--deep-blue);
             border: none;
-            padding: 22px 60px;
+            padding: 20px 50px;
             font-size: 18px;
             font-weight: 900;
             border-radius: 12px;
             cursor: pointer;
-            margin-top: 50px;
+            margin-top: 30px;
             text-transform: uppercase;
             letter-spacing: 2px;
             box-shadow: 0 10px 40px rgba(255, 204, 0, 0.4);
             pointer-events: auto;
+            transition: transform 0.2s;
+        }
+
+        .action-btn:active { transform: scale(0.95); }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            width: 85%;
+            max-width: 400px;
+            margin-bottom: 20px;
         }
 
         #distance-m { font-variant-numeric: tabular-nums; }
@@ -172,22 +191,35 @@
 </head>
 <body>
 
-    <div id="setup-screen">
-        <div class="robot-avatar" style="width: 80px; height: 80px; margin-bottom: 20px; border-width: 3px;">
-            <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--nav-blue)">
-                <path d="M12 8V4H8"></path>
+    <!-- START PAGE -->
+    <div id="start-page" class="page active">
+        <div class="robot-avatar" style="width: 100px; height: 100px; margin-bottom: 30px; border-width: 3px;">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--nav-blue)">
                 <rect width="16" height="12" x="4" y="8" rx="2"></rect>
-                <path d="M2 14h2"></path>
-                <path d="M20 14h2"></path>
-                <path d="M15 13v2"></path>
+                <path d="M12 8V4H8"></path>
                 <path d="M9 13v2"></path>
+                <path d="M15 13v2"></path>
             </svg>
         </div>
         <h1 class="glitch-title">RELIQ<br>HUNTER</h1>
-        <p style="opacity: 0.6; font-size: 0.9em; margin-top: 20px; line-height: 1.6;">Unit 7 is online. Ready to scan for digital artifacts.</p>
-        <button class="start-btn" id="start-btn">Wake Up Unit 7</button>
+        <p style="opacity: 0.6; margin-top: 20px; max-width: 280px; line-height: 1.6;">Welcome, Explorer. Unit 7 is ready to triangulate your first digital artifact.</p>
+        <button class="action-btn" id="start-game-btn">Initialize Hunt</button>
     </div>
 
+    <!-- END PAGE (RESULTS) -->
+    <div id="end-page" class="page">
+        <div class="card">
+            <h2 style="color: var(--safe-green); margin-top: 0;">MISSION SUCCESS</h2>
+            <div style="font-size: 64px; font-weight: 900; color: var(--neon-gold); margin: 20px 0;">+1</div>
+            <p style="opacity: 0.8; margin-bottom: 0;">Relic successfully decrypted and stored in your digital archive.</p>
+        </div>
+        <div style="display: flex; gap: 15px;">
+            <button class="action-btn" id="next-hunt-btn" style="padding: 15px 30px;">Next Signal</button>
+            <button class="action-btn" id="quit-btn" style="background: transparent; border: 2px solid white; color: white; padding: 15px 30px;">Quit</button>
+        </div>
+    </div>
+
+    <!-- GAME HUD -->
     <div id="game-ui">
         <div class="stat-container">
             <div>
@@ -215,8 +247,8 @@
                 </svg>
             </div>
             <div class="speech-bubble">
-                <div id="status-hud">Unit 7: Systems ready.</div>
-                <div id="nav-hint">Waiting for sensor lock...</div>
+                <div id="status-hud">Unit 7: Awaiting movement.</div>
+                <div id="nav-hint">Signal locked...</div>
             </div>
         </div>
     </div>
@@ -253,10 +285,24 @@
         const navHint = document.getElementById('nav-hint');
         const distanceM = document.getElementById('distance-m');
         const scoreEl = document.getElementById('score');
-        const setupScreen = document.getElementById('setup-screen');
-        const startBtn = document.getElementById('start-btn');
+        
+        const startPage = document.getElementById('start-page');
+        const endPage = document.getElementById('end-page');
+        const gameHud = document.getElementById('game-ui');
+        
         const pulseElement = document.getElementById('pulse-element');
         const navArrow = document.getElementById('nav-arrow');
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            gameHud.classList.remove('active');
+            
+            if (pageId === 'game') {
+                gameHud.classList.add('active');
+            } else {
+                document.getElementById(pageId).classList.add('active');
+            }
+        }
 
         function getBearing(lat1, lon1, lat2, lon2) {
             const y = Math.sin((lon2 - lon1) * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180);
@@ -265,17 +311,16 @@
             return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
         }
 
-        startBtn.addEventListener('click', () => {
-            setupScreen.style.opacity = '0';
-            setupScreen.style.pointerEvents = 'none';
-            setTimeout(() => setupScreen.style.display = 'none', 500);
+        function startNewHunt() {
+            showPage('game');
+            statusHud.innerText = "Unit 7: Triangulating...";
             
             navigator.geolocation.getCurrentPosition((position) => {
                 const userLat = position.coords.latitude;
                 const userLong = position.coords.longitude;
 
                 const angle = Math.random() * Math.PI * 2;
-                const radius = 0.00025; 
+                const radius = 0.00025; // ~25 meters
                 targetPos.lat = userLat + Math.cos(angle) * radius;
                 targetPos.lon = userLong + Math.sin(angle) * radius;
 
@@ -286,7 +331,11 @@
             }, (err) => {
                 statusHud.innerText = "Unit 7: GPS Link failed.";
             }, { enableHighAccuracy: true });
-        });
+        }
+
+        document.getElementById('start-game-btn').addEventListener('click', startNewHunt);
+        document.getElementById('next-hunt-btn').addEventListener('click', startNewHunt);
+        document.getElementById('quit-btn').addEventListener('click', () => location.reload());
 
         window.addEventListener('gps-camera-update-position', (ev) => {
             if (!isSpawned) return;
@@ -309,23 +358,23 @@
                 const diff = (relativeBearing + 360) % 360;
                 if (meters < 7) {
                     statusHud.innerText = "Unit 7: It's right here!";
-                    navHint.innerText = "SCAN UPWARDS NOW";
+                    navHint.innerText = "LOOK UP AND TAP IT";
                     navHint.style.color = "var(--safe-green)";
                 } else if (diff > 330 || diff < 30) {
-                    statusHud.innerText = "Unit 7: Correct path.";
+                    statusHud.innerText = "Unit 7: Perfect trajectory.";
                     navHint.innerText = "PROCEED STRAIGHT";
                     navHint.style.color = "var(--safe-green)";
                 } else if (diff >= 30 && diff < 150) {
-                    statusHud.innerText = "Unit 7: Adjusting...";
-                    navHint.innerText = "TURN TO THE RIGHT";
+                    statusHud.innerText = "Unit 7: Signal drift...";
+                    navHint.innerText = "TURN RIGHT";
                     navHint.style.color = "var(--neon-gold)";
                 } else if (diff >= 150 && diff < 210) {
-                    statusHud.innerText = "Unit 7: Lost signal!";
-                    navHint.innerText = "TURN AROUND IMMEDIATELY";
+                    statusHud.innerText = "Unit 7: Directional error!";
+                    navHint.innerText = "TURN AROUND";
                     navHint.style.color = "var(--hot-red)";
                 } else {
-                    statusHud.innerText = "Unit 7: Detecting shift...";
-                    navHint.innerText = "TURN TO THE LEFT";
+                    statusHud.innerText = "Unit 7: Pivot detected...";
+                    navHint.innerText = "TURN LEFT";
                     navHint.style.color = "var(--neon-gold)";
                 }
 
@@ -343,13 +392,14 @@
             if (!treasure.getAttribute('visible')) return;
             score++;
             scoreEl.innerText = score;
-            statusHud.innerText = "Unit 7: Artifact secured!";
             treasure.setAttribute('visible', 'false');
+            isSpawned = false;
+            
+            // Short delay to show the collection animation/text before switching page
+            statusHud.innerText = "Unit 7: Securing Relic...";
             setTimeout(() => {
-                if(confirm("Unit 7: Relic archived. Ready for the next signal?")) {
-                    location.reload();
-                }
-            }, 600);
+                showPage('end-page');
+            }, 1000);
         });
     </script>
 </body>
