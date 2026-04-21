@@ -3,39 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR Hand-Controlled Pac-Man</title>
+    <title>AR Pac-Man: Core Hunt</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Press+Start+2P&display=swap');
         
         body, html {
             background-color: #000;
-            color: #fff;
-            font-family: 'Orbitron', sans-serif;
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
             overflow: hidden;
-            margin: 0;
-            height: 100%;
+            font-family: 'Orbitron', sans-serif;
             touch-action: none;
         }
 
         #video-preview {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
+            inset: 0;
+            width: 100%; height: 100%;
             object-fit: cover;
             transform: scaleX(-1);
+            opacity: 0.4;
             z-index: 1;
         }
 
         canvas {
             position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 2;
+            inset: 0;
+            z-index: 5;
             pointer-events: none;
         }
 
@@ -49,357 +45,453 @@
         .hud {
             position: absolute;
             top: 20px;
-            left: 20px;
-            right: 20px;
-            background: rgba(0, 20, 40, 0.9);
+            left: 20px; right: 20px;
+            background: rgba(0, 20, 40, 0.85);
             backdrop-filter: blur(10px);
-            padding: 15px;
-            border: 1px solid rgba(0, 255, 255, 0.3);
-            border-left: 4px solid #0ff;
-            border-radius: 4px;
+            padding: 12px 20px;
+            border: 2px solid rgba(0, 255, 255, 0.3);
+            border-radius: 16px;
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            pointer-events: auto;
         }
 
         #overlay {
             position: absolute;
             inset: 0;
-            background: radial-gradient(circle, rgba(0,15,30,0.95) 0%, rgba(0,0,0,1) 100%);
+            background: radial-gradient(circle, rgba(0,20,50,0.95) 0%, #000 100%);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 100;
-            pointer-events: auto;
             text-align: center;
             padding: 20px;
         }
 
         .btn {
-            background: rgba(0, 255, 255, 0.1);
-            border: 2px solid #0ff;
-            color: #0ff;
-            padding: 15px 30px;
-            font-family: 'Press Start 2P', cursive;
-            font-size: 12px;
-            cursor: pointer;
-            transition: 0.3s;
-            text-transform: uppercase;
-            width: 100%;
-            max-width: 280px;
-            margin-bottom: 15px;
-        }
-
-        .btn:active {
             background: #0ff;
             color: #000;
-        }
-
-        #emergency-reset {
-            position: absolute;
-            top: 100px;
-            right: 20px;
-            background: rgba(255, 0, 0, 0.3);
-            border: 1px solid #f00;
-            color: #fff;
-            font-size: 8px;
-            padding: 5px 10px;
-            pointer-events: auto;
+            padding: 18px 36px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 11px;
+            border-radius: 12px;
             cursor: pointer;
-            border-radius: 4px;
-            text-transform: uppercase;
+            border: none;
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.5);
+            transition: all 0.2s;
         }
 
-        #gesture-hint {
+        .btn:disabled { background: #334155; color: #64748b; box-shadow: none; cursor: not-allowed; }
+        .btn:active { transform: scale(0.95); }
+
+        .status-pill {
             position: absolute;
-            bottom: 30px;
+            bottom: 40px;
             left: 50%;
             transform: translateX(-50%);
             background: rgba(0,0,0,0.8);
-            border: 1px solid #0ff;
-            padding: 8px 20px;
-            border-radius: 50px;
-            font-size: 10px;
-            color: #0ff;
-            text-transform: uppercase;
+            padding: 10px 24px;
+            border-radius: 30px;
+            border: 1px solid rgba(0,255,255,0.4);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            white-space: nowrap;
         }
 
-        .retro-font {
-            font-family: 'Press Start 2P', cursive;
-        }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-green { background: #0f0; box-shadow: 0 0 10px #0f0; }
+        .dot-red { background: #f00; box-shadow: 0 0 10px #f00; }
+
+        .retro-font { font-family: 'Press Start 2P', cursive; }
+        .victory-glow { color: #fff; text-shadow: 0 0 20px #0ff; animation: pulse 1s infinite alternate; }
+        .loss-glow { color: #ff4444; text-shadow: 0 0 20px #ff0000; }
+        
+        @keyframes pulse { from { opacity: 0.7; } to { opacity: 1; } }
     </style>
 </head>
 <body>
 
-    <video id="video-preview" autoplay playsinline></video>
+    <video id="video-preview" autoplay playsinline muted></video>
     <canvas id="gameCanvas"></canvas>
 
     <div class="ui-layer">
         <div class="hud" id="game-hud" style="display:none;">
             <div>
-                <h1 class="text-[10px] font-bold text-cyan-400 mb-1">SCORE</h1>
-                <p class="retro-font text-sm text-white" id="score-val">0000</p>
+                <p class="text-[10px] text-cyan-400 font-bold mb-1 tracking-widest">STREAK</p>
+                <p id="score-val" class="retro-font text-white text-lg">0000</p>
             </div>
-            <button id="emergency-reset" onclick="resetPositions()">Reset Pos</button>
             <div class="text-right">
-                <h1 class="text-[10px] font-bold text-pink-500 mb-1">LIVES</h1>
-                <p class="retro-font text-sm text-pink-500" id="lives-val">3</p>
+                <p class="text-[10px] text-yellow-400 font-bold mb-1 tracking-widest">BOOST</p>
+                <div class="w-24 h-2 bg-slate-800 rounded-full overflow-hidden border border-white/10">
+                    <div id="speed-bar" class="h-full bg-cyan-400 transition-all duration-300" style="width: 0%"></div>
+                </div>
             </div>
         </div>
-        <div id="gesture-hint" class="font-mono">INITIALIZING NEURAL LINK...</div>
+
+        <div class="status-pill">
+            <div id="status-dot" class="dot dot-red"></div>
+            <span id="status-text" class="text-[10px] text-cyan-300 font-bold uppercase tracking-[0.2em]">Sensor Offline</span>
+        </div>
     </div>
 
     <div id="overlay">
-        <h2 id="overlay-title" class="text-4xl font-bold text-cyan-400 mb-4 italic tracking-tighter">PAC-MAN AR</h2>
-        <div class="w-16 h-1 bg-cyan-400 mb-8"></div>
-        <button id="start-btn" class="btn">Launch V3 Logic</button>
-        <p class="text-[10px] text-gray-500 mt-10 uppercase tracking-widest">v3.0 Rail-Lock Motion Engine</p>
+        <h1 id="overlay-title" class="text-5xl font-bold text-white mb-6 italic tracking-tighter text-center">CORE HUNT</h1>
+        <div id="overlay-msg" class="max-w-xs text-[11px] text-slate-400 uppercase text-left mb-10 leading-relaxed border-l-2 border-cyan-500 pl-4">
+            <span id="msg-header" class="text-white font-bold">New Objective:</span><br>
+            <span id="msg-body">
+                The <span class="text-white underline">White Data Core</span> is mobile! <br><br>
+                1. Track it down in the maze.<br>
+                2. Fly into it to secure the data.<br>
+                3. Avoid the security ghosts!
+            </span>
+        </div>
+        <button id="start-btn" class="btn" disabled>Calibrating...</button>
     </div>
 
     <script>
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playSfx(freq, type, dur, vol = 0.1) {
+        function playSfx(f, t, d, v=0.05) {
             try {
-                const osc = audioCtx.createOscillator();
+                const o = audioCtx.createOscillator();
                 const g = audioCtx.createGain();
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-                g.gain.setValueAtTime(vol, audioCtx.currentTime);
-                g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
-                osc.connect(g); g.connect(audioCtx.destination);
-                osc.start(); osc.stop(audioCtx.currentTime + dur);
+                o.type = t; o.frequency.setValueAtTime(f, audioCtx.currentTime);
+                g.gain.setValueAtTime(v, audioCtx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + d);
+                o.connect(g); g.connect(audioCtx.destination);
+                o.start(); o.stop(audioCtx.currentTime + d);
             } catch(e) {}
         }
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('video-preview');
-        const overlay = document.getElementById('overlay');
         const startBtn = document.getElementById('start-btn');
+        const statusText = document.getElementById('status-text');
+        const statusDot = document.getElementById('status-dot');
+        const overlay = document.getElementById('overlay');
+        const overlayTitle = document.getElementById('overlay-title');
+        const overlayMsgHeader = document.getElementById('msg-header');
+        const overlayMsgBody = document.getElementById('msg-body');
 
         let gameActive = false;
         let score = 0;
-        let lives = 3;
-        let handPos = { x: -100, y: -100 };
-        let currentGesture = 'none';
-        let powerMode = false;
-        let powerTimer = 0;
+        let handPos = { x: 0, y: 0 };
+        let handSmooth = { x: 0, y: 0 };
+        let stunTimer = 0;
 
-        let TILE = 0;
-        const MAP_W = 15, MAP_H = 11;
+        const MAP_W = 13, MAP_H = 9;
+        const MAP_DATA = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,0,0,1,0,0,0,0,0,1],
+            [1,0,1,1,0,0,0,0,0,1,1,0,1],
+            [1,0,0,0,0,1,1,1,0,0,0,0,1],
+            [1,1,1,0,0,0,-1,0,0,0,1,1,1],
+            [1,0,0,0,0,1,1,1,0,0,0,0,1],
+            [1,0,1,1,0,0,0,0,0,1,1,0,1],
+            [1,0,0,0,0,0,1,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+        let grid = [];
+        let TILE = 40;
+
+        const pacman = { x: 0, y: 0, speed: 4.5, angle: 0, bonus: 0 };
         
+        // Target Core now follows grid logic like ghosts for better "wandering"
+        const targetCore = { 
+            gx: 1, gy: 1, 
+            d: {x:0, y:0}, 
+            p: 0, 
+            speed: 0.04, 
+            active: false 
+        };
+        
+        let ghosts = [];
+
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            TILE = Math.min(window.innerWidth / (MAP_W + 1), window.innerHeight / (MAP_H + 5));
+            TILE = Math.min(canvas.width / (MAP_W + 1), canvas.height / (MAP_H + 4));
+            if (!gameActive) resetPositions();
         }
         window.addEventListener('resize', resize);
         resize();
 
-        const rawMap = [
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-            [1,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
-            [1,2,1,1,0,1,0,1,0,1,0,1,1,2,1],
-            [1,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
-            [1,0,1,1,0,1,1,1,1,1,0,1,1,0,1],
-            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-            [1,0,1,1,0,1,1,1,1,1,0,1,1,0,1],
-            [1,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
-            [1,2,1,1,0,1,0,1,0,1,0,1,1,2,1],
-            [1,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-        ];
-        let map = [];
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${file}`
+        });
 
-        const pacman = { x: 0, y: 0, r: 0, angle: 0, speed: 4.5 };
-        const ghosts = [
-            { x: 0, y: 0, color: '#ff0044', speed: 1.5, vx: 0, vy: 0 },
-            { x: 0, y: 0, color: '#00ffff', speed: 1.8, vx: 0, vy: 0 }
-        ];
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 0,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.7
+        });
 
-        function resetPositions() {
-            const offsetX = (canvas.width - MAP_W * TILE) / 2;
-            const offsetY = (canvas.height - MAP_H * TILE) / 2;
-            pacman.r = TILE * 0.35; 
-            pacman.x = offsetX + (7 * TILE) + TILE/2;
-            pacman.y = offsetY + (9 * TILE) + TILE/2;
-            
-            ghosts.forEach((g, i) => {
-                g.x = offsetX + (7 * TILE) + (i * TILE - TILE/2);
-                g.y = offsetY + (5 * TILE) + TILE/2;
-                g.vx = (Math.random() > 0.5 ? 1 : -1) * g.speed;
-                g.vy = 0;
-            });
-        }
-
-        const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
-        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5 });
         hands.onResults(results => {
             if (results.multiHandLandmarks?.length > 0) {
                 const lm = results.multiHandLandmarks[0];
                 handPos.x = (1 - lm[9].x) * canvas.width;
                 handPos.y = lm[9].y * canvas.height;
-                currentGesture = lm[8].y < lm[6].y ? 'open' : 'none';
-                document.getElementById('gesture-hint').innerText = "LINK ACTIVE";
+
+                const dx = lm[4].x - lm[8].x, dy = lm[4].y - lm[8].y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if (dist < 0.05 && stunTimer <= 0 && gameActive) {
+                    stunTimer = 120;
+                    playSfx(1000, 'square', 0.2);
+                }
+
+                statusDot.className = "dot dot-green";
+                statusText.innerText = "Target Locked";
+                if (startBtn.disabled) {
+                    startBtn.disabled = false;
+                    startBtn.innerText = "INITIATE SCAN";
+                }
+            } else {
+                statusDot.className = "dot dot-red";
+                statusText.innerText = "Searching...";
             }
         });
 
-        const cam = new Camera(video, {
-            onFrame: async () => { await hands.send({ image: video }); },
-            width: 720, height: 1280
-        });
-        cam.start();
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
+                });
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    const detect = async () => {
+                        if (video.readyState >= 2) await hands.send({ image: video });
+                        requestAnimationFrame(detect);
+                    };
+                    detect();
+                };
+            } catch (e) { statusText.innerText = "Cam Blocked"; }
+        }
+        initCamera();
 
-        function isWallAt(px, py, offsetX, offsetY) {
-            const gx = Math.floor((px - offsetX) / TILE);
-            const gy = Math.floor((py - offsetY) / TILE);
-            if (gy < 0 || gy >= MAP_H || gx < 0 || gx >= MAP_W) return true;
-            return map[gy][gx] === 1;
+        function spawnWinCore() {
+            targetCore.gx = 1;
+            targetCore.gy = 1;
+            targetCore.p = 0;
+            targetCore.d = {x:0, y:0};
+            targetCore.active = true;
         }
 
-        function update() {
+        function resetPositions() {
+            const ox = (canvas.width - MAP_W * TILE) / 2;
+            const oy = (canvas.height - MAP_H * TILE) / 2;
+            pacman.x = ox + (6 * TILE) + TILE/2;
+            pacman.y = oy + (4 * TILE) + TILE/2;
+            handSmooth = { ...pacman };
+            ghosts = [
+                { gx: 1, gy: 1, c: '#f00', p: 0, d: {x:0,y:0}, s: 0.045 },
+                { gx: 11, gy: 1, c: '#0ff', p: 0, d: {x:0,y:0}, s: 0.055 }
+            ];
+        }
+
+        function startGame() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            grid = JSON.parse(JSON.stringify(MAP_DATA));
+            score = 0; pacman.bonus = 0; stunTimer = 0;
+            resetPositions();
+            spawnWinCore();
+            gameActive = true;
+            overlay.style.display = 'none';
+            document.getElementById('game-hud').style.display = 'flex';
+        }
+
+        function isWall(x, y) {
+            const ox = (canvas.width - MAP_W * TILE) / 2;
+            const oy = (canvas.height - MAP_H * TILE) / 2;
+            const gx = Math.floor((x - ox) / TILE), gy = Math.floor((y - oy) / TILE);
+            return gy < 0 || gy >= MAP_H || gx < 0 || gx >= MAP_W || grid[gy][gx] === 1;
+        }
+
+        function triggerWin() {
+            gameActive = false;
+            overlayTitle.innerText = "YOU WIN!";
+            overlayTitle.className = "text-6xl font-bold victory-glow mb-6 italic tracking-tighter";
+            overlayMsgHeader.innerText = "CORE SECURED";
+            overlayMsgBody.innerHTML = `Excellent work! You intercepted the Data Core and completed the scan.<br><br>Final Score: <span class="text-white">${score}</span>`;
+            overlay.style.display = 'flex';
+            startBtn.innerText = "PLAY AGAIN";
+            playSfx(1200, 'sine', 0.8);
+        }
+
+        function triggerLoss() {
+            gameActive = false;
+            overlayTitle.innerText = "YOU LOST";
+            overlayTitle.className = "text-6xl font-bold loss-glow mb-6 italic tracking-tighter";
+            overlayMsgHeader.innerText = "SYSTEM BREACH";
+            overlayMsgBody.innerHTML = `The security ghosts caught you! The connection was severed before the scan finished.<br><br>Final Score: <span class="text-white">${score}</span>`;
+            overlay.style.display = 'flex';
+            startBtn.innerText = "RE-CALIBRATE";
+            playSfx(150, 'sawtooth', 0.6);
+        }
+
+        function update(time) {
             if (!gameActive) return;
 
-            const offsetX = (canvas.width - MAP_W * TILE) / 2;
-            const offsetY = (canvas.height - MAP_H * TILE) / 2;
-            
-            const dx = handPos.x - pacman.x;
-            const dy = handPos.y - pacman.y;
-            const dist = Math.hypot(dx, dy);
-            
-            if (dist > 5) {
-                let s = currentGesture === 'open' ? pacman.speed * 1.5 : pacman.speed;
-                const vx = (dx / dist) * s;
-                const vy = (dy / dist) * s;
+            const ox = (canvas.width - MAP_W * TILE) / 2;
+            const oy = (canvas.height - MAP_H * TILE) / 2;
 
-                // 1. PROJECTED MOVEMENT
-                let targetX = pacman.x + vx;
-                let targetY = pacman.y + vy;
+            handSmooth.x += (handPos.x - handSmooth.x) * 0.25;
+            handSmooth.y += (handPos.y - handSmooth.y) * 0.25;
 
-                // 2. RAIL ALIGNMENT (FORCE TO CENTER)
-                const gridX = Math.floor((pacman.x - offsetX) / TILE);
-                const gridY = Math.floor((pacman.y - offsetY) / TILE);
-                const centerX = offsetX + gridX * TILE + TILE/2;
-                const centerY = offsetY + gridY * TILE + TILE/2;
-
-                // 3. COLLISION WITH "SLIDING"
-                // If moving horizontally, snap Y to center
-                if (Math.abs(vx) > Math.abs(vy)) {
-                    if (!isWallAt(targetX + (vx > 0 ? pacman.r : -pacman.r), pacman.y, offsetX, offsetY)) {
-                        pacman.x = targetX;
-                        pacman.y += (centerY - pacman.y) * 0.2; // Slide to rail
-                    }
-                } else {
-                    // If moving vertically, snap X to center
-                    if (!isWallAt(pacman.x, targetY + (vy > 0 ? pacman.r : -pacman.r), offsetX, offsetY)) {
-                        pacman.y = targetY;
-                        pacman.x += (centerX - pacman.x) * 0.2; // Slide to rail
-                    }
-                }
-
-                pacman.angle = Math.atan2(dy, dx);
+            const dx = handSmooth.x - pacman.x, dy = handSmooth.y - pacman.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist > 8) {
+                const spd = pacman.speed + pacman.bonus;
+                const vx = (dx / dist) * spd, vy = (dy / dist) * spd;
+                if (!isWall(pacman.x + vx, pacman.y)) pacman.x += vx;
+                if (!isWall(pacman.x, pacman.y + vy)) pacman.y += vy;
+                pacman.angle = Math.atan2(vy, vx);
             }
 
-            // Scoring
-            const mx = Math.floor((pacman.x - offsetX) / TILE);
-            const my = Math.floor((pacman.y - offsetY) / TILE);
-            if (map[my]?.[mx] === 0) {
-                map[my][mx] = -1; score += 10; playSfx(600, 'sine', 0.05);
-            } else if (map[my]?.[mx] === 2) {
-                map[my][mx] = -1; powerMode = true; powerTimer = 400; playSfx(800, 'triangle', 0.3);
-            }
-
-            // Ghost Movement
-            ghosts.forEach(g => {
-                if (!powerMode) {
-                    const gx = Math.floor((g.x - offsetX) / TILE);
-                    const gy = Math.floor((g.y - offsetY) / TILE);
-                    const nextGX = Math.floor((g.x + g.vx * 15 - offsetX)/TILE);
-                    if (isWallAt(offsetX + nextGX * TILE + TILE/2, g.y, offsetX, offsetY)) g.vx *= -1;
-                    g.x += g.vx;
-                }
-                if (Math.hypot(pacman.x - g.x, pacman.y - g.y) < TILE * 0.6) {
-                    if (powerMode) {
-                        g.x = offsetX + (7 * TILE) + TILE/2; g.y = offsetY + (5 * TILE) + TILE/2; 
-                        score += 200;
+            // Core Wandering Logic
+            if (targetCore.active) {
+                if (targetCore.p <= 0) {
+                    const directions = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+                    const valid = directions.filter(d => {
+                        const nx = targetCore.gx + d.x, ny = targetCore.gy + d.y;
+                        return ny >= 0 && ny < MAP_H && nx >= 0 && nx < MAP_W && grid[ny][nx] !== 1;
+                    });
+                    // Prefer continuing in same direction, otherwise pick new one
+                    const sameDir = valid.find(v => v.x === targetCore.d.x && v.y === targetCore.d.y);
+                    if (sameDir && Math.random() > 0.3) {
+                        targetCore.d = sameDir;
                     } else {
-                        lives--; resetPositions();
-                        if (lives <= 0) endGame();
+                        targetCore.d = valid[Math.floor(Math.random() * valid.length)] || {x:0,y:0};
                     }
+                }
+                
+                targetCore.p += targetCore.speed;
+                if (targetCore.p >= 1) {
+                    targetCore.gx += targetCore.d.x;
+                    targetCore.gy += targetCore.d.y;
+                    targetCore.p = 0;
+                }
+
+                const coreX = ox + (targetCore.gx + targetCore.d.x * targetCore.p) * TILE + TILE/2;
+                const coreY = oy + (targetCore.gy + targetCore.d.y * targetCore.p) * TILE + TILE/2;
+
+                const distToCore = Math.sqrt((pacman.x - coreX)**2 + (pacman.y - coreY)**2);
+                if (distToCore < TILE * 0.6) {
+                    triggerWin();
+                    return;
+                }
+            }
+
+            const gx = Math.floor((pacman.x - ox) / TILE), gy = Math.floor((pacman.y - oy) / TILE);
+            if (gy >= 0 && gy < MAP_H && gx >= 0 && gx < MAP_W && grid[gy][gx] === 0) {
+                grid[gy][gx] = -2;
+                score += 10;
+                pacman.bonus = Math.min(5, pacman.bonus + 0.15);
+                playSfx(800 + (score % 200), 'sine', 0.05, 0.02);
+            }
+
+            if (stunTimer > 0) stunTimer--;
+
+            ghosts.forEach(g => {
+                if (stunTimer <= 0) {
+                    if (g.p <= 0) {
+                        const ds = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+                        const valid = ds.filter(d => {
+                            const nx = g.gx+d.x, ny = g.gy+d.y;
+                            return ny>=0 && ny<MAP_H && nx>=0 && nx<MAP_W && grid[ny][nx]!==1;
+                        });
+                        g.d = valid[Math.floor(Math.random()*valid.length)] || {x:0,y:0};
+                    }
+                    g.p += g.s;
+                    if (g.p >= 1) { g.gx += g.d.x; g.gy += g.d.y; g.p = 0; }
+                }
+
+                const gsx = ox + (g.gx + g.d.x * g.p) * TILE + TILE/2;
+                const gsy = oy + (g.gy + g.d.y * g.p) * TILE + TILE/2;
+                if (Math.sqrt((pacman.x-gsx)**2 + (pacman.y-gsy)**2) < TILE*0.4 && stunTimer <= 0) {
+                    triggerLoss();
+                    return;
                 }
             });
 
-            if (powerMode && --powerTimer <= 0) powerMode = false;
             document.getElementById('score-val').innerText = score.toString().padStart(4, '0');
-            document.getElementById('lives-val').innerText = lives;
+            document.getElementById('speed-bar').style.width = (pacman.bonus / 5 * 100) + "%";
         }
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const offsetX = (canvas.width - MAP_W * TILE) / 2;
-            const offsetY = (canvas.height - MAP_H * TILE) / 2;
+            const ox = (canvas.width - MAP_W * TILE) / 2;
+            const oy = (canvas.height - MAP_H * TILE) / 2;
 
             if (gameActive) {
-                // Maze
+                ctx.lineWidth = 2;
                 for(let y=0; y<MAP_H; y++) {
                     for(let x=0; x<MAP_W; x++) {
-                        const px = offsetX + x * TILE;
-                        const py = offsetY + y * TILE;
-                        if (map[y][x] === 1) {
-                            ctx.fillStyle = 'rgba(0, 255, 255, 0.1)';
-                            ctx.strokeStyle = '#0ff';
-                            ctx.lineWidth = 1;
-                            ctx.strokeRect(px + 4, py + 4, TILE - 8, TILE - 8);
-                        } else if (map[y][x] === 0) {
-                            ctx.fillStyle = 'white';
-                            ctx.beginPath(); ctx.arc(px+TILE/2, py+TILE/2, 2, 0, Math.PI*2); ctx.fill();
-                        } else if (map[y][x] === 2) {
-                            ctx.fillStyle = '#0ff';
-                            ctx.beginPath(); ctx.arc(px+TILE/2, py+TILE/2, TILE/4, 0, Math.PI*2); ctx.fill();
+                        const px = ox + x * TILE, py = oy + y * TILE;
+                        if (grid[y][x] === 1) {
+                            ctx.strokeStyle = 'rgba(0, 255, 255, 0.4)';
+                            ctx.strokeRect(px+6, py+6, TILE-12, TILE-12);
+                        } else if (grid[y][x] === 0) {
+                            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                            ctx.beginPath(); ctx.arc(px+TILE/2, py+TILE/2, 2.5, 0, 7); ctx.fill();
                         }
                     }
                 }
 
-                // Pacman
+                if (targetCore.active) {
+                    const coreX = ox + (targetCore.gx + targetCore.d.x * targetCore.p) * TILE + TILE/2;
+                    const coreY = oy + (targetCore.gy + targetCore.d.y * targetCore.p) * TILE + TILE/2;
+                    
+                    const pulse = Math.sin(Date.now()*0.012) * 6;
+                    ctx.shadowBlur = 25 + pulse;
+                    ctx.shadowColor = "#fff";
+                    ctx.fillStyle = "#fff";
+                    ctx.beginPath(); 
+                    ctx.arc(coreX, coreY, 10 + pulse/2, 0, 7); 
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    ctx.strokeStyle = "rgba(0, 255, 255, 0.8)";
+                    ctx.beginPath(); ctx.arc(coreX, coreY, 15 + pulse, 0, 7); ctx.stroke();
+                }
+
                 ctx.save();
                 ctx.translate(pacman.x, pacman.y);
                 ctx.rotate(pacman.angle);
-                ctx.fillStyle = powerMode ? '#0ff' : '#ff0';
-                ctx.beginPath();
-                const mouth = 0.25 * Math.sin(Date.now()*0.02) + 0.25;
-                ctx.arc(0, 0, pacman.r, mouth, Math.PI*2 - mouth);
+                ctx.fillStyle = '#ff0';
+                const m = 0.25 * Math.sin(Date.now()*0.018) + 0.25;
+                ctx.beginPath(); ctx.arc(0, 0, TILE*0.42, m, 6.28-m);
                 ctx.lineTo(0,0); ctx.fill();
                 ctx.restore();
 
-                // Ghosts
                 ghosts.forEach(g => {
-                    ctx.fillStyle = powerMode ? '#4444ff' : g.color;
-                    ctx.beginPath(); ctx.arc(g.x, g.y, pacman.r, Math.PI, 0);
-                    ctx.lineTo(g.x + pacman.r, g.y + pacman.r);
-                    ctx.lineTo(g.x - pacman.r, g.y + pacman.r); ctx.fill();
+                    const gsx = ox + (g.gx + g.d.x * g.p) * TILE + TILE/2;
+                    const gsy = oy + (g.gy + g.d.y * g.p) * TILE + TILE/2;
+                    ctx.fillStyle = stunTimer > 0 ? '#44f' : g.c;
+                    ctx.beginPath(); ctx.arc(gsx, gsy, TILE*0.38, Math.PI, 0);
+                    ctx.lineTo(gsx+TILE*0.38, gsy+TILE*0.38); 
+                    ctx.lineTo(gsx-TILE*0.38, gsy+TILE*0.38); ctx.fill();
                 });
             }
 
-            requestAnimationFrame(() => { update(); draw(); });
+            ctx.strokeStyle = stunTimer > 0 ? '#fbbf24' : 'rgba(0, 255, 255, 0.6)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([8, 4]);
+            ctx.beginPath(); ctx.arc(handSmooth.x, handSmooth.y, 45, 0, 7); ctx.stroke();
+            ctx.setLineDash([]);
+            
+            requestAnimationFrame(draw);
         }
 
-        function endGame() {
-            gameActive = false;
-            overlay.style.display = 'flex';
-            document.getElementById('overlay-title').innerText = "MISSION FAILED";
-        }
-
-        startBtn.onclick = () => {
-            audioCtx.resume();
-            map = JSON.parse(JSON.stringify(rawMap));
-            score = 0; lives = 3;
-            resize(); resetPositions();
-            gameActive = true;
-            overlay.style.display = 'none';
-            document.getElementById('game-hud').style.display = 'flex';
+        startBtn.onclick = startGame;
+        
+        const mainLoop = (time) => {
+            update(time);
+            requestAnimationFrame(mainLoop);
         };
-
+        requestAnimationFrame(mainLoop);
         draw();
     </script>
 </body>
