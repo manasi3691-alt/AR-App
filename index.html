@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CORE HUNT: ELITE AR</title>
+    <title>CORE HUNT: HYPER-MAGNET BREACH</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
     <style>
@@ -24,7 +24,7 @@
             width: 100%; height: 100%;
             object-fit: cover;
             transform: scaleX(-1);
-            opacity: 0.35;
+            opacity: 0.25;
             z-index: 1;
         }
 
@@ -37,201 +37,146 @@
 
         .hud {
             position: absolute;
-            top: 20px;
-            left: 20px; right: 20px;
-            background: linear-gradient(180deg, rgba(0, 40, 80, 0.9) 0%, rgba(0, 10, 20, 0.8) 100%);
-            backdrop-filter: blur(12px);
-            padding: 15px 25px;
-            border: 1px solid rgba(0, 255, 255, 0.4);
-            border-radius: 20px;
+            top: 20px; left: 20px; right: 20px;
+            background: rgba(0, 15, 30, 0.9);
+            backdrop-filter: blur(8px);
+            padding: 12px;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 8px;
             display: flex;
             justify-content: space-between;
             z-index: 20;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .charge-bar-container {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 12px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid #0ff;
+            border-radius: 6px;
+            z-index: 30;
+            overflow: hidden;
+        }
+
+        #charge-fill {
+            width: 0%;
+            height: 100%;
+            background: #0ff;
+            box-shadow: 0 0 15px #0ff;
+            transition: width 0.3s ease;
+        }
+
+        #mission-text {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #0ff;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            z-index: 30;
+            width: 80%;
+            pointer-events: none;
+            background: rgba(0,0,0,0.6);
+            padding: 10px;
+            border-radius: 5px;
         }
 
         #overlay {
             position: absolute;
             inset: 0;
-            background: radial-gradient(circle at center, rgba(0,10,30,0.95) 0%, #000 100%);
+            background: radial-gradient(circle, rgba(0,20,50,0.95) 0%, #000 100%);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 100;
             text-align: center;
+            padding: 20px;
         }
 
         .btn {
-            background: linear-gradient(135deg, #0ff 0%, #0088ff 100%);
+            background: #0ff;
             color: #000;
-            padding: 20px 45px;
+            padding: 15px 30px;
             font-family: 'Press Start 2P', cursive;
-            font-size: 12px;
-            border-radius: 15px;
+            font-size: 10px;
+            border-radius: 4px;
             cursor: pointer;
             border: none;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
         }
 
-        .btn:hover:not(:disabled) { transform: scale(1.05); filter: brightness(1.2); }
-        .btn:active { transform: scale(0.95); }
-        .btn:disabled { background: #1e293b; color: #475569; box-shadow: none; cursor: not-allowed; }
-
-        .life-heart { 
-            font-size: 20px;
-            color: #ff2d55; 
-            text-shadow: 0 0 15px rgba(255, 45, 85, 0.8);
-            margin-right: 4px;
-            transition: all 0.5s ease;
-        }
-        .life-lost { opacity: 0; transform: scale(2) translateY(-20px); }
-
-        #scanline {
-            width: 100%;
-            height: 100px;
-            background: linear-gradient(to bottom, transparent, rgba(0, 255, 255, 0.05), transparent);
-            position: absolute;
-            top: -100px;
-            left: 0;
-            pointer-events: none;
-            z-index: 2;
-            animation: scan 4s linear infinite;
-        }
-
-        @keyframes scan {
-            from { top: -100px; }
-            to { top: 110%; }
-        }
-
-        .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
-        @keyframes shake {
-            10%, 90% { transform: translate3d(-2px, 0, 0); }
-            20%, 80% { transform: translate3d(4px, 0, 0); }
-            30%, 50%, 70% { transform: translate3d(-8px, 0, 0); }
-            40%, 60% { transform: translate3d(8px, 0, 0); }
-        }
-
-        .retro-font { font-family: 'Press Start 2P', cursive; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
-    <div id="scanline"></div>
     <video id="video-preview" autoplay playsinline muted></video>
     <canvas id="gameCanvas"></canvas>
 
     <div class="hud" id="game-hud" style="display:none;">
-        <div class="flex gap-8">
-            <div class="text-left">
-                <p class="text-[9px] text-cyan-400 font-black mb-1 uppercase tracking-widest">Score</p>
-                <p id="score-val" class="retro-font text-white text-xl">0000</p>
-                <p class="text-[8px] text-slate-500 mt-1 uppercase">Hi-Score: <span id="hi-score">0000</span></p>
-            </div>
-            <div class="text-left">
-                <p class="text-[9px] text-red-400 font-black mb-1 uppercase tracking-widest">Integrity</p>
-                <div id="lives-container" class="flex"></div>
-            </div>
+        <div>
+            <p class="text-[8px] text-cyan-400 mb-1 tracking-widest">UPLINK STATUS</p>
+            <p id="score-val" class="text-white font-black text-lg tracking-tighter">0% SYNCED</p>
         </div>
-
         <div class="text-right">
-            <p id="stage-val" class="text-cyan-400 font-bold text-sm mb-1 italic">STAGE 1</p>
-            <div class="flex items-center gap-3">
-                <div class="w-32 h-2 bg-slate-900/80 rounded-full border border-white/10 overflow-hidden">
-                    <div id="speed-bar" class="h-full bg-cyan-400 shadow-[0_0_10px_#0ff]" style="width: 0%"></div>
-                </div>
-                <button id="audio-toggle" class="bg-white/5 p-2 rounded-lg hover:bg-white/10 transition-colors">
-                    <svg id="speaker-icon" width="16" height="16" fill="white" viewBox="0 0 24 24"><path d="M14 1.1V22.9L7 16H2V8H7L14 1.1Z"/></svg>
-                </button>
-            </div>
+            <p class="text-[8px] text-red-400 mb-1 tracking-widest">STABILITY</p>
+            <div id="lives-container" class="flex gap-1 justify-end"></div>
         </div>
     </div>
 
-    <div id="overlay">
-        <div class="mb-10 relative">
-            <h1 id="overlay-title" class="text-7xl font-black text-white italic tracking-tighter relative z-10">CORE HUNT</h1>
-            <div class="absolute -inset-2 bg-cyan-500/20 blur-3xl rounded-full"></div>
-        </div>
-        
-        <div class="max-w-sm bg-white/5 border border-white/10 backdrop-blur-md p-6 rounded-2xl mb-8">
-            <p id="overlay-msg" class="text-xs text-slate-300 leading-relaxed uppercase tracking-wider text-center">
-                <span class="text-cyan-400 font-black">Calibration Required:</span><br>
-                Position hand in view to begin system sync. 
-                Collect the <span class="text-white">Floating Cores</span> to advance. 
-                Pinch <span class="text-yellow-400">(Index + Thumb)</span> to EMP stun ghosts.
-            </p>
-        </div>
+    <div class="charge-bar-container" id="charge-ui" style="display:none;">
+        <div id="charge-fill"></div>
+        <p id="charge-label" class="absolute inset-0 flex items-center justify-center text-[7px] text-black font-bold uppercase">Locked</p>
+    </div>
 
+    <div id="mission-text">INITIALIZING CORE...</div>
+
+    <div id="overlay">
+        <h1 id="overlay-title" class="text-5xl font-black text-white italic mb-4">CORE HUNT</h1>
+        <p id="overlay-msg" class="text-slate-400 text-xs mb-8 uppercase tracking-widest leading-loose text-center">
+            Infiltrate the mainframe.<br>
+            Reach Sector 3 to unlock the <span class="text-cyan-400">Hyper-Magnet</span>.<br>
+            <span class="text-white bg-cyan-900 px-2">PINCH</span> for a 2s data-vacuum surge.
+        </p>
         <button id="start-btn" class="btn" disabled>CALIBRATING...</button>
     </div>
 
     <script>
-        // --- GAME CONSTANTS ---
         const CONFIG = {
-            mapW: 13,
-            mapH: 9,
-            initialGhostSpeed: 0.04,
-            ghostSpeedIncrement: 0.008,
-            initialCoreSpeed: 0.03,
-            maxLives: 3
+            mapW: 13, mapH: 9,
+            sectors: [
+                { id: 0, title: "SECTOR 1: BREACH", dotsToWin: 12, ghostSpeed: 0.04, magnetAllowed: false },
+                { id: 1, title: "SECTOR 2: FIREWALL", dotsToWin: 22, ghostSpeed: 0.06, magnetAllowed: false },
+                { id: 2, title: "FINAL SECTOR: OVERLOAD", dotsToWin: 32, ghostSpeed: 0.08, magnetAllowed: true }
+            ],
+            chargeNeeded: 8 // dots needed in Sector 3 to enable magnet
         };
 
-        // --- AUDIO ENGINE ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        let musicMuted = false;
-        let bgMusicTimer = null;
-
-        function playTone(freq, type, duration, volume = 0.1) {
-            if (musicMuted) return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + duration);
-        }
-
-        function startMusic() {
-            if (bgMusicTimer) return;
-            let step = 0;
-            const bass = [110, 110, 146, 123];
-            bgMusicTimer = setInterval(() => {
-                if (gameState.active && !musicMuted) {
-                    playTone(bass[step % 4], 'square', 0.2, 0.03);
-                    if (step % 8 === 0) playTone(60, 'sine', 0.3, 0.1); // Heavy kick
-                    step++;
-                }
-            }, 250);
-        }
-
-        // --- GAME STATE ---
         const gameState = {
             active: false,
-            score: 0,
-            hiScore: localStorage.getItem('coreHuntHiScore') || 0,
-            lives: CONFIG.maxLives,
-            stage: 1,
-            stunTimer: 0,
+            sector: 0,
+            dotsCollected: 0,
+            lives: 3,
+            abilityCharge: 0,
+            abilityActive: false,
+            abilityTimer: 0,
+            isPinching: false,
             invincibility: 0,
-            particles: [],
-            shake: 0
+            handX: 0,
+            handY: 0
         };
 
-        const player = { x: 0, y: 0, sx: 0, sy: 0, angle: 0, bonusSpeed: 0, size: 0.4 };
-        const core = { gx: 1, gy: 1, dx: 0, dy: 0, progress: 0, active: true };
+        const player = { x: 0, y: 0, angle: 0 };
         let ghosts = [];
         let dots = [];
-        let walls = [];
-
-        // --- INITIALIZATION ---
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const video = document.getElementById('video-preview');
-        const startBtn = document.getElementById('start-btn');
-        const hud = document.getElementById('game-hud');
         let TILE = 40;
 
         const MAP = [
@@ -239,317 +184,348 @@
             [1,0,0,0,0,0,1,0,0,0,0,0,1],
             [1,0,1,1,0,0,0,0,0,1,1,0,1],
             [1,0,0,0,0,1,1,1,0,0,0,0,1],
-            [1,1,1,0,0,0,0,0,0,0,1,1,1],
+            [1,0,1,1,0,1,1,1,0,1,1,0,1],
             [1,0,0,0,0,1,1,1,0,0,0,0,1],
             [1,0,1,1,0,0,0,0,0,1,1,0,1],
             [1,0,0,0,0,0,1,0,0,0,0,0,1],
             [1,1,1,1,1,1,1,1,1,1,1,1,1]
         ];
 
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            TILE = Math.min(canvas.width / (CONFIG.mapW + 1), canvas.height / (CONFIG.mapH + 4));
-            if (!gameState.active) resetPlayer();
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function sfx(f, type, d, v=0.1) {
+            if (audioCtx.state === 'suspended') return;
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o.type = type; o.frequency.value = f;
+            g.gain.setValueAtTime(v, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + d);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(); o.stop(audioCtx.currentTime + d);
         }
-        window.addEventListener('resize', resize);
-        resize();
 
-        // --- HAND TRACKING ---
         const hands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${f}` });
         hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6 });
         hands.onResults(results => {
             if (results.multiHandLandmarks?.length > 0) {
                 const lm = results.multiHandLandmarks[0];
-                player.sx = (1 - lm[9].x) * canvas.width;
-                player.sy = lm[9].y * canvas.height;
-
-                // Pinch Detection
-                const dist = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
-                if (dist < 0.04 && gameState.stunTimer <= 0 && gameState.active) {
-                    gameState.stunTimer = 150;
-                    playTone(800, 'square', 0.4, 0.1);
-                    createExplosion(player.x, player.y, '#fbbf24', 20);
-                }
+                gameState.handX = (1 - lm[9].x) * window.innerWidth;
+                gameState.handY = lm[9].y * window.innerHeight;
                 
-                if (startBtn.disabled) {
-                    startBtn.disabled = false;
-                    startBtn.innerText = "START MISSION";
+                const pinch = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
+                gameState.isPinching = pinch < 0.04;
+
+                // Trigger Magnet Ability (Only in Level 3)
+                const currentCfg = CONFIG.sectors[gameState.sector];
+                if (gameState.isPinching && currentCfg.magnetAllowed && gameState.abilityCharge >= CONFIG.chargeNeeded && !gameState.abilityActive && gameState.active) {
+                    gameState.abilityActive = true;
+                    gameState.abilityTimer = 120; // 2 seconds at 60fps
+                    gameState.abilityCharge = 0;
+                    sfx(1000, 'square', 0.3, 0.2);
+                }
+
+                if (document.getElementById('start-btn').disabled) {
+                    document.getElementById('start-btn').disabled = false;
+                    document.getElementById('start-btn').innerText = "INITIATE MISSION";
+                    document.getElementById('mission-text').innerText = "UPLINK READY.";
                 }
             }
         });
 
-        async function setupCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-            video.srcObject = stream;
-            video.onloadedmetadata = () => {
-                const step = async () => {
-                    await hands.send({ image: video });
-                    requestAnimationFrame(step);
-                };
-                step();
-            };
+        async function initCam() {
+            try {
+                const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                document.getElementById('video-preview').srcObject = s;
+                const predict = async () => { await hands.send({ image: document.getElementById('video-preview') }); requestAnimationFrame(predict); };
+                predict();
+            } catch (e) {
+                document.getElementById('mission-text').innerText = "CAMERA ERROR";
+            }
         }
-        setupCamera();
+        initCam();
 
-        // --- CORE LOGIC ---
-        function resetPlayer() {
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resize() {
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            TILE = Math.min(canvas.width/15, canvas.height/12);
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function spawnSector(index) {
+            gameState.sector = index;
+            gameState.dotsCollected = 0;
+            gameState.abilityCharge = 0; // Reset charge on level change
+            const cfg = CONFIG.sectors[index];
+            
+            dots = [];
+            for(let i=0; i<cfg.dotsToWin; i++) {
+                let rx, ry;
+                do { rx = Math.floor(Math.random()*13); ry = Math.floor(Math.random()*9); } while(MAP[ry][rx] === 1);
+                dots.push({x: rx * TILE + TILE/2, y: ry * TILE + TILE/2});
+            }
+
+            ghosts = [
+                { gx: 1, gy: 1, dx: 0, dy: 0, p: 0, s: cfg.ghostSpeed, c: '#f87171' },
+                { gx: 11, gy: 1, dx: 0, dy: 0, p: 0, s: cfg.ghostSpeed, c: '#22d3ee' }
+            ];
+            if (index > 1) ghosts.push({ gx: 6, gy: 1, dx: 0, dy: 0, p: 0, s: cfg.ghostSpeed*1.1, c: '#fbbf24' });
+
+            document.getElementById('mission-text').innerText = cfg.title;
+            gameState.invincibility = 60;
+            
             const ox = (canvas.width - CONFIG.mapW * TILE) / 2;
             const oy = (canvas.height - CONFIG.mapH * TILE) / 2;
-            player.x = ox + 6 * TILE + TILE/2;
-            player.y = oy + 4 * TILE + TILE/2;
-            player.sx = player.x; player.sy = player.y;
-            player.bonusSpeed = 0;
-        }
+            player.x = ox + 1 * TILE + TILE/2;
+            player.y = oy + 7 * TILE + TILE/2;
 
-        function spawnStage() {
-            dots = [];
-            for (let y=0; y<CONFIG.mapH; y++) {
-                for (let x=0; x<CONFIG.mapW; x++) {
-                    if (MAP[y][x] === 0) dots.push({x, y});
-                }
-            }
-            ghosts = [
-                { gx: 1, gy: 1, dx: 0, dy: 0, p: 0, c: '#ff3131', s: CONFIG.initialGhostSpeed + (gameState.stage * CONFIG.ghostSpeedIncrement) },
-                { gx: 11, gy: 1, dx: 0, dy: 0, p: 0, c: '#00ffff', s: CONFIG.initialGhostSpeed + (gameState.stage * CONFIG.ghostSpeedIncrement * 1.2) }
-            ];
-            core.gx = 6; core.gy = 1; core.progress = 0;
-            document.getElementById('stage-val').innerText = `STAGE ${gameState.stage}`;
-        }
-
-        function createExplosion(x, y, color, count = 10) {
-            for (let i = 0; i < count; i++) {
-                gameState.particles.push({
-                    x, y,
-                    vx: (Math.random() - 0.5) * 10,
-                    vy: (Math.random() - 0.5) * 10,
-                    life: 1.0,
-                    color
-                });
+            // UI feedback for level unlock
+            const label = document.getElementById('charge-label');
+            if (cfg.magnetAllowed) {
+                label.innerText = "Magnet Offline";
+                label.style.color = "black";
+            } else {
+                label.innerText = "SYSTEM LOCKED";
+                label.style.color = "#f87171";
             }
         }
 
         function update() {
             if (!gameState.active) return;
-
             const ox = (canvas.width - CONFIG.mapW * TILE) / 2;
             const oy = (canvas.height - CONFIG.mapH * TILE) / 2;
 
-            // Player Movement
-            const dx = player.sx - player.x, dy = player.sy - player.y;
-            const d = Math.hypot(dx, dy);
-            if (d > 5) {
-                const s = 4.5 + player.bonusSpeed;
-                const vx = (dx/d)*s, vy = (dy/d)*s;
-                const nx = player.x + vx, ny = player.y + vy;
-                
-                const checkWall = (tx, ty) => {
-                    const gx = Math.floor((tx - ox)/TILE), gy = Math.floor((ty - oy)/TILE);
+            // Ability Timer
+            if (gameState.abilityActive) {
+                gameState.abilityTimer--;
+                if (gameState.abilityTimer <= 0) gameState.abilityActive = false;
+            }
+
+            // Player logic
+            const dx = gameState.handX - player.x, dy = gameState.handY - player.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist > 5) {
+                const moveSpeed = gameState.abilityActive ? 9 : 6;
+                const vx = (dx/dist)*moveSpeed, vy = (dy/dist)*moveSpeed;
+                const check = (tx, ty) => {
+                    const gx = Math.floor((tx-ox)/TILE);
+                    const gy = Math.floor((ty-oy)/TILE);
                     return MAP[gy]?.[gx] === 1;
                 };
+                const b = TILE * 0.3;
+                const isWall = (nx, ny) => check(nx-b, ny-b) || check(nx+b, ny-b) || check(nx-b, ny+b) || check(nx+b, ny+b);
 
-                if (!checkWall(nx, player.y)) player.x = nx;
-                if (!checkWall(player.x, ny)) player.y = ny;
+                if (!isWall(player.x + vx, player.y)) player.x += vx;
+                if (!isWall(player.x, player.y + vy)) player.y += vy;
                 player.angle = Math.atan2(vy, vx);
             }
 
-            // Dot Collision
-            const pgx = Math.floor((player.x - ox)/TILE), pgy = Math.floor((player.y - oy)/TILE);
-            const dotIdx = dots.findIndex(dt => dt.x === pgx && dt.y === pgy);
-            if (dotIdx > -1) {
-                dots.splice(dotIdx, 1);
-                gameState.score += 10;
-                player.bonusSpeed = Math.min(4, player.bonusSpeed + 0.1);
-                playTone(600 + (gameState.score % 500), 'sine', 0.05, 0.01);
-                createExplosion(player.x, player.y, '#fff', 2);
-            }
+            // Dots & Hyper-Magnet Logic
+            dots.forEach((d, i) => {
+                const worldX = ox + d.x, worldY = oy + d.y;
+                
+                if (gameState.abilityActive) {
+                    const mdx = player.x - worldX, mdy = player.y - worldY;
+                    const mdist = Math.hypot(mdx, mdy);
+                    if (mdist < TILE * 7) {
+                        d.x += (mdx/mdist) * 10;
+                        d.y += (mdy/mdist) * 10;
+                    }
+                }
 
-            // Core Movement & Collision
-            if (core.progress <= 0) {
-                const dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
-                const valid = dirs.filter(d => MAP[core.gy+d.y]?.[core.gx+d.x] === 0);
-                const next = valid[Math.floor(Math.random()*valid.length)];
-                core.dx = next?.x || 0; core.dy = next?.y || 0;
-            }
-            core.progress += CONFIG.initialCoreSpeed + (gameState.stage * 0.005);
-            if (core.progress >= 1) { core.gx += core.dx; core.gy += core.dy; core.progress = 0; }
+                if (Math.hypot(player.x - worldX, player.y - worldY) < TILE * 0.5) {
+                    dots.splice(i, 1);
+                    gameState.dotsCollected++;
+                    
+                    // Only charge if level 3
+                    if (CONFIG.sectors[gameState.sector].magnetAllowed && !gameState.abilityActive && gameState.abilityCharge < CONFIG.chargeNeeded) {
+                        gameState.abilityCharge++;
+                    }
+                    
+                    sfx(800 + (gameState.dotsCollected % 10)*40, 'sine', 0.05);
+                    
+                    if (gameState.dotsCollected >= CONFIG.sectors[gameState.sector].dotsToWin) {
+                        if (gameState.sector < 2) spawnSector(gameState.sector + 1);
+                        else winGame();
+                    }
+                }
+            });
 
-            const cx = ox + (core.gx + core.dx * core.progress) * TILE + TILE/2;
-            const cy = oy + (core.gy + core.dy * core.progress) * TILE + TILE/2;
-            if (Math.hypot(player.x - cx, player.y - cy) < TILE * 0.6) {
-                gameState.stage++;
-                gameState.score += 500;
-                playTone(1000, 'sine', 0.5, 0.1);
-                createExplosion(cx, cy, '#fff', 30);
-                spawnStage();
-            }
-
-            // Ghost Logic
-            if (gameState.stunTimer > 0) gameState.stunTimer--;
+            // Ghost logic
             if (gameState.invincibility > 0) gameState.invincibility--;
 
             ghosts.forEach(g => {
-                if (gameState.stunTimer <= 0) {
+                if (!gameState.abilityActive) {
                     if (g.p <= 0) {
-                        const ds = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
-                        const valid = ds.filter(d => MAP[g.gy+d.y]?.[g.gx+d.x] === 0);
-                        g.dx = valid[Math.floor(Math.random()*valid.length)]?.x || 0;
-                        g.dy = valid[Math.floor(Math.random()*valid.length)]?.y || 0;
+                        const dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+                        const valid = dirs.filter(d => MAP[g.gy+d.y]?.[g.gx+d.x] === 0);
+                        if (valid.length > 0) {
+                            const next = valid[Math.floor(Math.random()*valid.length)];
+                            g.dx = next.x; g.dy = next.y;
+                        }
                     }
                     g.p += g.s;
                     if (g.p >= 1) { g.gx += g.dx; g.gy += g.dy; g.p = 0; }
                 }
 
-                const gx = ox + (g.gx + g.dx * g.p) * TILE + TILE/2;
-                const gy = oy + (g.gy + g.dy * g.p) * TILE + TILE/2;
-                if (Math.hypot(player.x - gx, player.y - gy) < TILE*0.5 && gameState.stunTimer <= 0 && gameState.invincibility <= 0) {
+                const gx = ox + (g.gx + g.dx*g.p)*TILE + TILE/2;
+                const gy = oy + (g.gy + g.dy*g.p)*TILE + TILE/2;
+                
+                if (Math.hypot(player.x-gx, player.y-gy) < TILE*0.5 && gameState.invincibility <= 0 && !gameState.abilityActive) {
                     gameState.lives--;
-                    gameState.shake = 20;
-                    gameState.invincibility = 120;
-                    playTone(150, 'sawtooth', 0.5, 0.2);
-                    updateLivesUI(true);
-                    if (gameState.lives <= 0) endGame();
+                    gameState.invincibility = 100;
+                    sfx(100, 'sawtooth', 0.4);
+                    updateLives();
+                    if (gameState.lives <= 0) gameOver();
                 }
             });
 
-            // Particles
-            gameState.particles.forEach((p, i) => {
-                p.x += p.vx; p.y += p.vy; p.life -= 0.02;
-                if (p.life <= 0) gameState.particles.splice(i, 1);
-            });
-
-            if (gameState.shake > 0) gameState.shake--;
-
             // Update UI
-            document.getElementById('score-val').innerText = gameState.score.toString().padStart(4, '0');
-            document.getElementById('speed-bar').style.width = (player.bonusSpeed / 4 * 100) + "%";
+            const currentLevelCfg = CONFIG.sectors[gameState.sector];
+            const pct = Math.floor((gameState.dotsCollected / currentLevelCfg.dotsToWin) * 100);
+            document.getElementById('score-val').innerText = `${pct}% SYNCED`;
+            
+            const chargeFill = document.getElementById('charge-fill');
+            const chargeLabel = document.getElementById('charge-label');
+            
+            if (currentLevelCfg.magnetAllowed) {
+                const chargePct = (gameState.abilityCharge / CONFIG.chargeNeeded) * 100;
+                chargeFill.style.width = gameState.abilityActive ? '100%' : `${chargePct}%`;
+                chargeFill.style.backgroundColor = gameState.abilityCharge >= CONFIG.chargeNeeded ? '#0ff' : '#048';
+                chargeLabel.innerText = gameState.abilityActive ? "ACTIVE" : (gameState.abilityCharge >= CONFIG.chargeNeeded ? "PINCH NOW" : "Charging...");
+            } else {
+                chargeFill.style.width = '0%';
+            }
         }
 
         function draw() {
-            ctx.save();
-            if (gameState.shake > 0) ctx.translate((Math.random()-0.5)*gameState.shake, (Math.random()-0.5)*gameState.shake);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
             const ox = (canvas.width - CONFIG.mapW * TILE) / 2;
             const oy = (canvas.height - CONFIG.mapH * TILE) / 2;
 
             if (gameState.active) {
-                // Draw Map
+                // Map drawing
+                ctx.strokeStyle = "rgba(0, 255, 255, 0.2)";
                 ctx.lineWidth = 1;
-                for (let y=0; y<CONFIG.mapH; y++) {
-                    for (let x=0; x<CONFIG.mapW; x++) {
-                        if (MAP[y][x] === 1) {
-                            ctx.strokeStyle = 'rgba(0, 255, 255, 0.2)';
-                            ctx.strokeRect(ox+x*TILE+4, oy+y*TILE+4, TILE-8, TILE-8);
-                        }
+                for(let y=0; y<9; y++) {
+                    for(let x=0; x<13; x++) {
+                        if(MAP[y][x] === 1) ctx.strokeRect(ox+x*TILE+4, oy+y*TILE+4, TILE-8, TILE-8);
                     }
                 }
 
-                // Dots
-                ctx.fillStyle = "#fff";
+                // Hyper-Magnet FX
+                if (gameState.abilityActive) {
+                    ctx.strokeStyle = "rgba(0, 255, 255, 0.6)";
+                    ctx.beginPath(); ctx.arc(player.x, player.y, TILE * 3, 0, Math.PI*2); ctx.stroke();
+                    
+                    dots.forEach(d => {
+                        const wx = ox + d.x, wy = oy + d.y;
+                        if (Math.hypot(player.x-wx, player.y-wy) < TILE * 7) {
+                            ctx.strokeStyle = `rgba(0, 255, 255, ${Math.random()})`;
+                            ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(wx, wy); ctx.stroke();
+                        }
+                    });
+
+                    // Glitch
+                    if (Math.random() > 0.85) {
+                        ctx.fillStyle = "rgba(0, 255, 255, 0.15)";
+                        ctx.fillRect(0,0, canvas.width, canvas.height);
+                    }
+                }
+
+                // Fragments
                 dots.forEach(d => {
-                    ctx.beginPath(); ctx.arc(ox + d.x*TILE + TILE/2, oy + d.y*TILE + TILE/2, 2, 0, 7); ctx.fill();
+                    ctx.fillStyle = "#0ff";
+                    ctx.beginPath(); ctx.arc(ox+d.x, oy+d.y, 4, 0, Math.PI*2); ctx.fill();
                 });
-
-                // Particles
-                gameState.particles.forEach(p => {
-                    ctx.globalAlpha = p.life;
-                    ctx.fillStyle = p.color;
-                    ctx.fillRect(p.x, p.y, 3, 3);
-                });
-                ctx.globalAlpha = 1;
-
-                // Core
-                const cx = ox + (core.gx + core.dx * core.progress) * TILE + TILE/2;
-                const cy = oy + (core.gy + core.dy * core.progress) * TILE + TILE/2;
-                const glow = Math.sin(Date.now()*0.01)*5;
-                ctx.shadowBlur = 15 + glow; ctx.shadowColor = "#fff";
-                ctx.fillStyle = "#fff";
-                ctx.beginPath(); ctx.arc(cx, cy, 10, 0, 7); ctx.fill();
-                ctx.shadowBlur = 0;
 
                 // Player
                 if (gameState.invincibility % 10 < 5) {
                     ctx.save();
                     ctx.translate(player.x, player.y);
                     ctx.rotate(player.angle);
-                    ctx.fillStyle = "#ffff00";
-                    const mouth = 0.2 * Math.sin(Date.now()*0.02) + 0.2;
-                    ctx.beginPath(); ctx.arc(0, 0, TILE*0.4, mouth, 2*Math.PI - mouth);
+                    
+                    if (gameState.abilityActive) {
+                        ctx.shadowBlur = 25; ctx.shadowColor = "#0ff";
+                        ctx.fillStyle = "#fff";
+                    } else {
+                        ctx.fillStyle = "#ff0";
+                    }
+                    
+                    ctx.beginPath(); 
+                    const mouth = 0.2 * Math.sin(Date.now() * (gameState.abilityActive ? 0.05 : 0.015)) + 0.2;
+                    ctx.arc(0, 0, TILE*0.35, mouth, Math.PI*2-mouth);
                     ctx.lineTo(0,0); ctx.fill();
                     ctx.restore();
+                    ctx.shadowBlur = 0;
                 }
 
                 // Ghosts
                 ghosts.forEach(g => {
-                    const gx = ox + (g.gx + g.dx * g.p) * TILE + TILE/2;
-                    const gy = oy + (g.gy + g.dy * g.p) * TILE + TILE/2;
-                    ctx.fillStyle = gameState.stunTimer > 0 ? "#4444ff" : g.c;
+                    const gx = ox + (g.gx + g.dx*g.p)*TILE + TILE/2;
+                    const gy = oy + (g.gy + g.dy*g.p)*TILE + TILE/2;
+                    ctx.fillStyle = gameState.abilityActive ? "#002244" : g.c;
+                    
                     ctx.beginPath(); ctx.arc(gx, gy, TILE*0.35, Math.PI, 0);
-                    ctx.lineTo(gx+TILE*0.35, gy+TILE*0.35); ctx.lineTo(gx-TILE*0.35, gy+TILE*0.35); ctx.fill();
-                    // Eyes
-                    ctx.fillStyle = "white";
-                    ctx.fillRect(gx-6, gy-4, 4, 4); ctx.fillRect(gx+2, gy-4, 4, 4);
+                    ctx.lineTo(gx+TILE*0.35, gy+TILE*0.35); 
+                    ctx.lineTo(gx-TILE*0.35, gy+TILE*0.35); 
+                    ctx.fill();
                 });
             }
 
-            // Target Crosshair
-            ctx.strokeStyle = gameState.stunTimer > 0 ? "#fbbf24" : "rgba(0, 255, 255, 0.5)";
+            // Hand Cursor
+            const canMagnet = CONFIG.sectors[gameState.sector].magnetAllowed && gameState.abilityCharge >= CONFIG.chargeNeeded;
+            const cursorColor = canMagnet ? "#0ff" : "rgba(255,255,255,0.2)";
+            ctx.strokeStyle = gameState.isPinching ? "#fff" : cursorColor;
             ctx.setLineDash([5, 5]);
-            ctx.beginPath(); ctx.arc(player.sx, player.sy, 50, 0, 7); ctx.stroke();
+            ctx.beginPath(); ctx.arc(gameState.handX, gameState.handY, 40, 0, 7); ctx.stroke();
             ctx.setLineDash([]);
-            
-            ctx.restore();
+
             requestAnimationFrame(draw);
         }
 
-        function updateLivesUI(isLoss = false) {
+        function updateLives() {
             const container = document.getElementById('lives-container');
             container.innerHTML = '';
-            for (let i = 0; i < CONFIG.maxLives; i++) {
-                const heart = document.createElement('span');
-                heart.className = 'life-heart';
-                heart.innerHTML = '❤';
-                if (i >= gameState.lives) heart.className = 'life-heart life-lost';
-                container.appendChild(heart);
+            for(let i=0; i<3; i++) {
+                const s = document.createElement('span');
+                s.innerHTML = '◈';
+                s.style.color = i < gameState.lives ? '#f44' : '#222';
+                container.appendChild(s);
             }
         }
 
-        function startGame() {
+        function start() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            startMusic();
             gameState.active = true;
-            gameState.score = 0;
-            gameState.lives = CONFIG.maxLives;
-            gameState.stage = 1;
-            gameState.invincibility = 0;
-            document.getElementById('hi-score').innerText = gameState.hiScore.toString().padStart(4, '0');
-            updateLivesUI();
-            resetPlayer();
-            spawnStage();
-            overlay.style.display = 'none';
-            hud.style.display = 'flex';
+            gameState.lives = 3;
+            gameState.abilityCharge = 0;
+            gameState.abilityActive = false;
+            spawnSector(0);
+            updateLives();
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('game-hud').style.display = 'flex';
+            document.getElementById('charge-ui').style.display = 'block';
         }
 
-        function endGame() {
+        function gameOver() {
             gameState.active = false;
-            if (gameState.score > gameState.hiScore) {
-                gameState.hiScore = gameState.score;
-                localStorage.setItem('coreHuntHiScore', gameState.hiScore);
-            }
-            overlay.style.display = 'flex';
-            document.getElementById('overlay-title').innerText = "SYSTEM FAILURE";
-            document.getElementById('overlay-title').classList.add('text-red-500');
-            document.getElementById('overlay-msg').innerHTML = `MISSION TERMINATED.<br>FINAL SCORE: <span class="text-white text-lg">${gameState.score}</span><br>STAGE REACHED: ${gameState.stage}`;
-            startBtn.innerText = "REBOOT SYSTEM";
+            document.getElementById('overlay').style.display = 'flex';
+            document.getElementById('overlay-title').innerText = "LINK SEVERED";
+            document.getElementById('overlay-msg').innerText = "SYSTEM COUNTERMEASURES OVERWHELMED YOU.";
+            document.getElementById('start-btn').innerText = "RE-INITIALIZE";
         }
 
-        startBtn.onclick = startGame;
-        document.getElementById('audio-toggle').onclick = () => {
-            musicMuted = !musicMuted;
-            document.getElementById('speaker-icon').style.fill = musicMuted ? '#475569' : 'white';
-        };
+        function winGame() {
+            gameState.active = false;
+            document.getElementById('overlay').style.display = 'flex';
+            document.getElementById('overlay-title').innerText = "CORE SECURED";
+            document.getElementById('overlay-msg').innerHTML = "SYSTEM OVERRIDDEN.<br>DATA BREACH COMPLETE.";
+            document.getElementById('start-btn').innerText = "PLAY AGAIN";
+        }
 
+        document.getElementById('start-btn').onclick = start;
         setInterval(update, 1000/60);
         draw();
     </script>
