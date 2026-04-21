@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR Pac-Man: Core Hunt</title>
+    <title>CORE HUNT: ELITE AR</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js" crossorigin="anonymous"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Press+Start+2P&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Press+Start+2P&display=swap');
         
         body, html {
             background-color: #000;
@@ -24,7 +24,7 @@
             width: 100%; height: 100%;
             object-fit: cover;
             transform: scaleX(-1);
-            opacity: 0.4;
+            opacity: 0.35;
             z-index: 1;
         }
 
@@ -35,522 +35,522 @@
             pointer-events: none;
         }
 
-        .ui-layer {
-            position: absolute;
-            inset: 0;
-            z-index: 10;
-            pointer-events: none;
-        }
-
         .hud {
             position: absolute;
             top: 20px;
             left: 20px; right: 20px;
-            background: rgba(0, 20, 40, 0.85);
-            backdrop-filter: blur(10px);
-            padding: 12px 20px;
-            border: 2px solid rgba(0, 255, 255, 0.3);
-            border-radius: 16px;
+            background: linear-gradient(180deg, rgba(0, 40, 80, 0.9) 0%, rgba(0, 10, 20, 0.8) 100%);
+            backdrop-filter: blur(12px);
+            padding: 15px 25px;
+            border: 1px solid rgba(0, 255, 255, 0.4);
+            border-radius: 20px;
             display: flex;
             justify-content: space-between;
-            pointer-events: auto;
+            z-index: 20;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
         #overlay {
             position: absolute;
             inset: 0;
-            background: radial-gradient(circle, rgba(0,20,50,0.95) 0%, #000 100%);
+            background: radial-gradient(circle at center, rgba(0,10,30,0.95) 0%, #000 100%);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 100;
             text-align: center;
-            padding: 20px;
         }
 
         .btn {
-            background: #0ff;
+            background: linear-gradient(135deg, #0ff 0%, #0088ff 100%);
             color: #000;
-            padding: 18px 36px;
+            padding: 20px 45px;
             font-family: 'Press Start 2P', cursive;
-            font-size: 11px;
-            border-radius: 12px;
+            font-size: 12px;
+            border-radius: 15px;
             cursor: pointer;
             border: none;
-            box-shadow: 0 0 25px rgba(0, 255, 255, 0.5);
-            transition: all 0.2s;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        .btn:disabled { background: #334155; color: #64748b; box-shadow: none; cursor: not-allowed; }
+        .btn:hover:not(:disabled) { transform: scale(1.05); filter: brightness(1.2); }
         .btn:active { transform: scale(0.95); }
+        .btn:disabled { background: #1e293b; color: #475569; box-shadow: none; cursor: not-allowed; }
 
-        .status-pill {
+        .life-heart { 
+            font-size: 20px;
+            color: #ff2d55; 
+            text-shadow: 0 0 15px rgba(255, 45, 85, 0.8);
+            margin-right: 4px;
+            transition: all 0.5s ease;
+        }
+        .life-lost { opacity: 0; transform: scale(2) translateY(-20px); }
+
+        #scanline {
+            width: 100%;
+            height: 100px;
+            background: linear-gradient(to bottom, transparent, rgba(0, 255, 255, 0.05), transparent);
             position: absolute;
-            bottom: 40px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
-            padding: 10px 24px;
-            border-radius: 30px;
-            border: 1px solid rgba(0,255,255,0.4);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            white-space: nowrap;
+            top: -100px;
+            left: 0;
+            pointer-events: none;
+            z-index: 2;
+            animation: scan 4s linear infinite;
         }
 
-        .dot { width: 10px; height: 10px; border-radius: 50%; }
-        .dot-green { background: #0f0; box-shadow: 0 0 10px #0f0; }
-        .dot-red { background: #f00; box-shadow: 0 0 10px #f00; }
+        @keyframes scan {
+            from { top: -100px; }
+            to { top: 110%; }
+        }
+
+        .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-8px, 0, 0); }
+            40%, 60% { transform: translate3d(8px, 0, 0); }
+        }
 
         .retro-font { font-family: 'Press Start 2P', cursive; }
-        .victory-glow { color: #fff; text-shadow: 0 0 20px #0ff; animation: pulse 1s infinite alternate; }
-        .loss-glow { color: #ff4444; text-shadow: 0 0 20px #ff0000; }
-        
-        .life-heart { color: #ff4444; text-shadow: 0 0 10px #f00; display: inline-block; margin-left: 5px; }
-        
-        @keyframes pulse { from { opacity: 0.7; } to { opacity: 1; } }
     </style>
 </head>
 <body>
 
+    <div id="scanline"></div>
     <video id="video-preview" autoplay playsinline muted></video>
     <canvas id="gameCanvas"></canvas>
 
-    <div class="ui-layer">
-        <div class="hud" id="game-hud" style="display:none;">
-            <div class="flex gap-6">
-                <div>
-                    <p class="text-[10px] text-cyan-400 font-bold mb-1 tracking-widest uppercase">Score</p>
-                    <p id="score-val" class="retro-font text-white text-lg">0000</p>
-                </div>
-                <div>
-                    <p class="text-[10px] text-red-400 font-bold mb-1 tracking-widest uppercase">System Integrity</p>
-                    <div id="lives-container" class="text-lg">
-                        <span class="life-heart">❤</span><span class="life-heart">❤</span><span class="life-heart">❤</span>
-                    </div>
-                </div>
+    <div class="hud" id="game-hud" style="display:none;">
+        <div class="flex gap-8">
+            <div class="text-left">
+                <p class="text-[9px] text-cyan-400 font-black mb-1 uppercase tracking-widest">Score</p>
+                <p id="score-val" class="retro-font text-white text-xl">0000</p>
+                <p class="text-[8px] text-slate-500 mt-1 uppercase">Hi-Score: <span id="hi-score">0000</span></p>
             </div>
-            <div class="text-right flex flex-col items-end">
-                <button id="audio-toggle" class="text-[9px] text-slate-400 mb-2 pointer-events-auto hover:text-cyan-400">AUDIO: ON</button>
-                <p class="text-[10px] text-yellow-400 font-bold mb-1 tracking-widest">BOOST</p>
-                <div class="w-24 h-2 bg-slate-800 rounded-full overflow-hidden border border-white/10">
-                    <div id="speed-bar" class="h-full bg-cyan-400 transition-all duration-300" style="width: 0%"></div>
-                </div>
+            <div class="text-left">
+                <p class="text-[9px] text-red-400 font-black mb-1 uppercase tracking-widest">Integrity</p>
+                <div id="lives-container" class="flex"></div>
             </div>
         </div>
 
-        <div class="status-pill">
-            <div id="status-dot" class="dot dot-red"></div>
-            <span id="status-text" class="text-[10px] text-cyan-300 font-bold uppercase tracking-[0.2em]">Sensor Offline</span>
+        <div class="text-right">
+            <p id="stage-val" class="text-cyan-400 font-bold text-sm mb-1 italic">STAGE 1</p>
+            <div class="flex items-center gap-3">
+                <div class="w-32 h-2 bg-slate-900/80 rounded-full border border-white/10 overflow-hidden">
+                    <div id="speed-bar" class="h-full bg-cyan-400 shadow-[0_0_10px_#0ff]" style="width: 0%"></div>
+                </div>
+                <button id="audio-toggle" class="bg-white/5 p-2 rounded-lg hover:bg-white/10 transition-colors">
+                    <svg id="speaker-icon" width="16" height="16" fill="white" viewBox="0 0 24 24"><path d="M14 1.1V22.9L7 16H2V8H7L14 1.1Z"/></svg>
+                </button>
+            </div>
         </div>
     </div>
 
     <div id="overlay">
-        <h1 id="overlay-title" class="text-5xl font-bold text-white mb-6 italic tracking-tighter text-center">CORE HUNT</h1>
-        <div id="overlay-msg" class="max-w-xs text-[11px] text-slate-400 uppercase text-left mb-10 leading-relaxed border-l-2 border-cyan-500 pl-4">
-            <span id="msg-header" class="text-white font-bold">New Objective:</span><br>
-            <span id="msg-body">
-                The <span class="text-white underline">White Data Core</span> is mobile! <br><br>
-                1. Track it down in the maze.<br>
-                2. Fly into it to secure the data.<br>
-                3. Avoid the security ghosts!
-            </span>
+        <div class="mb-10 relative">
+            <h1 id="overlay-title" class="text-7xl font-black text-white italic tracking-tighter relative z-10">CORE HUNT</h1>
+            <div class="absolute -inset-2 bg-cyan-500/20 blur-3xl rounded-full"></div>
         </div>
-        <button id="start-btn" class="btn" disabled>Calibrating...</button>
+        
+        <div class="max-w-sm bg-white/5 border border-white/10 backdrop-blur-md p-6 rounded-2xl mb-8">
+            <p id="overlay-msg" class="text-xs text-slate-300 leading-relaxed uppercase tracking-wider text-center">
+                <span class="text-cyan-400 font-black">Calibration Required:</span><br>
+                Position hand in view to begin system sync. 
+                Collect the <span class="text-white">Floating Cores</span> to advance. 
+                Pinch <span class="text-yellow-400">(Index + Thumb)</span> to EMP stun ghosts.
+            </p>
+        </div>
+
+        <button id="start-btn" class="btn" disabled>CALIBRATING...</button>
     </div>
 
     <script>
-        // --- AUDIO ENGINE ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        let musicActive = true;
-        let bgMusicTimer = null;
-
-        function playSfx(f, t, d, v=0.05) {
-            if (!musicActive) return;
-            try {
-                const o = audioCtx.createOscillator();
-                const g = audioCtx.createGain();
-                o.type = t; o.frequency.setValueAtTime(f, audioCtx.currentTime);
-                g.gain.setValueAtTime(v, audioCtx.currentTime);
-                g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + d);
-                o.connect(g); g.connect(audioCtx.destination);
-                o.start(); o.stop(audioCtx.currentTime + d);
-            } catch(e) {}
-        }
-
-        // Procedural Background Music
-        function startMusic() {
-            if (bgMusicTimer) return;
-            const sequence = [220, 247, 261, 293]; // Bass notes
-            let step = 0;
-            bgMusicTimer = setInterval(() => {
-                if (gameActive && musicActive) {
-                    const freq = sequence[step % sequence.length];
-                    playSfx(freq, 'triangle', 0.4, 0.02);
-                    if (step % 4 === 0) playSfx(80, 'sine', 0.2, 0.05); // Kick
-                    step++;
-                }
-            }, 300);
-        }
-
-        document.getElementById('audio-toggle').onclick = (e) => {
-            musicActive = !musicActive;
-            e.target.innerText = `AUDIO: ${musicActive ? 'ON' : 'OFF'}`;
-            e.target.classList.toggle('text-slate-400', !musicActive);
-            e.target.classList.toggle('text-cyan-400', musicActive);
+        // --- GAME CONSTANTS ---
+        const CONFIG = {
+            mapW: 13,
+            mapH: 9,
+            initialGhostSpeed: 0.04,
+            ghostSpeedIncrement: 0.008,
+            initialCoreSpeed: 0.03,
+            maxLives: 3
         };
 
+        // --- AUDIO ENGINE ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let musicMuted = false;
+        let bgMusicTimer = null;
+
+        function playTone(freq, type, duration, volume = 0.1) {
+            if (musicMuted) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function startMusic() {
+            if (bgMusicTimer) return;
+            let step = 0;
+            const bass = [110, 110, 146, 123];
+            bgMusicTimer = setInterval(() => {
+                if (gameState.active && !musicMuted) {
+                    playTone(bass[step % 4], 'square', 0.2, 0.03);
+                    if (step % 8 === 0) playTone(60, 'sine', 0.3, 0.1); // Heavy kick
+                    step++;
+                }
+            }, 250);
+        }
+
+        // --- GAME STATE ---
+        const gameState = {
+            active: false,
+            score: 0,
+            hiScore: localStorage.getItem('coreHuntHiScore') || 0,
+            lives: CONFIG.maxLives,
+            stage: 1,
+            stunTimer: 0,
+            invincibility: 0,
+            particles: [],
+            shake: 0
+        };
+
+        const player = { x: 0, y: 0, sx: 0, sy: 0, angle: 0, bonusSpeed: 0, size: 0.4 };
+        const core = { gx: 1, gy: 1, dx: 0, dy: 0, progress: 0, active: true };
+        let ghosts = [];
+        let dots = [];
+        let walls = [];
+
+        // --- INITIALIZATION ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('video-preview');
         const startBtn = document.getElementById('start-btn');
-        const statusText = document.getElementById('status-text');
-        const statusDot = document.getElementById('status-dot');
-        const overlay = document.getElementById('overlay');
-        const overlayTitle = document.getElementById('overlay-title');
-        const overlayMsgHeader = document.getElementById('msg-header');
-        const overlayMsgBody = document.getElementById('msg-body');
-        const livesContainer = document.getElementById('lives-container');
+        const hud = document.getElementById('game-hud');
+        let TILE = 40;
 
-        let gameActive = false;
-        let score = 0;
-        let lives = 3;
-        let handPos = { x: 0, y: 0 };
-        let handSmooth = { x: 0, y: 0 };
-        let stunTimer = 0;
-        let invincibilityFrames = 0;
-
-        const MAP_W = 13, MAP_H = 9;
-        const MAP_DATA = [
+        const MAP = [
             [1,1,1,1,1,1,1,1,1,1,1,1,1],
             [1,0,0,0,0,0,1,0,0,0,0,0,1],
             [1,0,1,1,0,0,0,0,0,1,1,0,1],
             [1,0,0,0,0,1,1,1,0,0,0,0,1],
-            [1,1,1,0,0,0,-1,0,0,0,1,1,1],
+            [1,1,1,0,0,0,0,0,0,0,1,1,1],
             [1,0,0,0,0,1,1,1,0,0,0,0,1],
             [1,0,1,1,0,0,0,0,0,1,1,0,1],
             [1,0,0,0,0,0,1,0,0,0,0,0,1],
             [1,1,1,1,1,1,1,1,1,1,1,1,1]
         ];
-        let grid = [];
-        let TILE = 40;
-
-        const pacman = { x: 0, y: 0, speed: 4.5, angle: 0, bonus: 0 };
-        const targetCore = { gx: 1, gy: 1, d: {x:0, y:0}, p: 0, speed: 0.04, active: false };
-        let ghosts = [];
 
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            TILE = Math.min(canvas.width / (MAP_W + 1), canvas.height / (MAP_H + 4));
-            if (!gameActive) resetPositions();
+            TILE = Math.min(canvas.width / (CONFIG.mapW + 1), canvas.height / (CONFIG.mapH + 4));
+            if (!gameState.active) resetPlayer();
         }
         window.addEventListener('resize', resize);
         resize();
 
-        const hands = new Hands({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${file}`
-        });
-
-        hands.setOptions({
-            maxNumHands: 1,
-            modelComplexity: 0,
-            minDetectionConfidence: 0.7,
-            minTrackingConfidence: 0.7
-        });
-
+        // --- HAND TRACKING ---
+        const hands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${f}` });
+        hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6 });
         hands.onResults(results => {
             if (results.multiHandLandmarks?.length > 0) {
                 const lm = results.multiHandLandmarks[0];
-                handPos.x = (1 - lm[9].x) * canvas.width;
-                handPos.y = lm[9].y * canvas.height;
+                player.sx = (1 - lm[9].x) * canvas.width;
+                player.sy = lm[9].y * canvas.height;
 
-                const dx = lm[4].x - lm[8].x, dy = lm[4].y - lm[8].y;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-                
-                if (dist < 0.05 && stunTimer <= 0 && gameActive) {
-                    stunTimer = 120;
-                    playSfx(1000, 'square', 0.2);
+                // Pinch Detection
+                const dist = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
+                if (dist < 0.04 && gameState.stunTimer <= 0 && gameState.active) {
+                    gameState.stunTimer = 150;
+                    playTone(800, 'square', 0.4, 0.1);
+                    createExplosion(player.x, player.y, '#fbbf24', 20);
                 }
-
-                statusDot.className = "dot dot-green";
-                statusText.innerText = "Target Locked";
+                
                 if (startBtn.disabled) {
                     startBtn.disabled = false;
-                    startBtn.innerText = "INITIATE SCAN";
+                    startBtn.innerText = "START MISSION";
                 }
-            } else {
-                statusDot.className = "dot dot-red";
-                statusText.innerText = "Searching...";
             }
         });
 
-        async function initCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
-                });
-                video.srcObject = stream;
-                video.onloadedmetadata = () => {
-                    const detect = async () => {
-                        if (video.readyState >= 2) await hands.send({ image: video });
-                        requestAnimationFrame(detect);
-                    };
-                    detect();
+        async function setupCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+            video.srcObject = stream;
+            video.onloadedmetadata = () => {
+                const step = async () => {
+                    await hands.send({ image: video });
+                    requestAnimationFrame(step);
                 };
-            } catch (e) { statusText.innerText = "Cam Blocked"; }
+                step();
+            };
         }
-        initCamera();
+        setupCamera();
 
-        function spawnWinCore() {
-            targetCore.gx = 1;
-            targetCore.gy = 1;
-            targetCore.p = 0;
-            targetCore.d = {x:0, y:0};
-            targetCore.active = true;
-        }
-
-        function resetPositions() {
-            const ox = (canvas.width - MAP_W * TILE) / 2;
-            const oy = (canvas.height - MAP_H * TILE) / 2;
-            pacman.x = ox + (6 * TILE) + TILE/2;
-            pacman.y = oy + (4 * TILE) + TILE/2;
-            pacman.bonus = 0;
-            handSmooth = { ...pacman };
-            ghosts = [
-                { gx: 1, gy: 1, c: '#f00', p: 0, d: {x:0,y:0}, s: 0.045 },
-                { gx: 11, gy: 1, c: '#0ff', p: 0, d: {x:0,y:0}, s: 0.055 }
-            ];
+        // --- CORE LOGIC ---
+        function resetPlayer() {
+            const ox = (canvas.width - CONFIG.mapW * TILE) / 2;
+            const oy = (canvas.height - CONFIG.mapH * TILE) / 2;
+            player.x = ox + 6 * TILE + TILE/2;
+            player.y = oy + 4 * TILE + TILE/2;
+            player.sx = player.x; player.sy = player.y;
+            player.bonusSpeed = 0;
         }
 
-        function updateLivesUI() {
-            livesContainer.innerHTML = '';
-            for (let i = 0; i < lives; i++) {
-                const s = document.createElement('span');
-                s.className = 'life-heart';
-                s.innerText = '❤';
-                livesContainer.appendChild(s);
+        function spawnStage() {
+            dots = [];
+            for (let y=0; y<CONFIG.mapH; y++) {
+                for (let x=0; x<CONFIG.mapW; x++) {
+                    if (MAP[y][x] === 0) dots.push({x, y});
+                }
             }
-            if (lives === 0) livesContainer.innerText = 'CRITICAL FAILURE';
+            ghosts = [
+                { gx: 1, gy: 1, dx: 0, dy: 0, p: 0, c: '#ff3131', s: CONFIG.initialGhostSpeed + (gameState.stage * CONFIG.ghostSpeedIncrement) },
+                { gx: 11, gy: 1, dx: 0, dy: 0, p: 0, c: '#00ffff', s: CONFIG.initialGhostSpeed + (gameState.stage * CONFIG.ghostSpeedIncrement * 1.2) }
+            ];
+            core.gx = 6; core.gy = 1; core.progress = 0;
+            document.getElementById('stage-val').innerText = `STAGE ${gameState.stage}`;
+        }
+
+        function createExplosion(x, y, color, count = 10) {
+            for (let i = 0; i < count; i++) {
+                gameState.particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 1.0,
+                    color
+                });
+            }
+        }
+
+        function update() {
+            if (!gameState.active) return;
+
+            const ox = (canvas.width - CONFIG.mapW * TILE) / 2;
+            const oy = (canvas.height - CONFIG.mapH * TILE) / 2;
+
+            // Player Movement
+            const dx = player.sx - player.x, dy = player.sy - player.y;
+            const d = Math.hypot(dx, dy);
+            if (d > 5) {
+                const s = 4.5 + player.bonusSpeed;
+                const vx = (dx/d)*s, vy = (dy/d)*s;
+                const nx = player.x + vx, ny = player.y + vy;
+                
+                const checkWall = (tx, ty) => {
+                    const gx = Math.floor((tx - ox)/TILE), gy = Math.floor((ty - oy)/TILE);
+                    return MAP[gy]?.[gx] === 1;
+                };
+
+                if (!checkWall(nx, player.y)) player.x = nx;
+                if (!checkWall(player.x, ny)) player.y = ny;
+                player.angle = Math.atan2(vy, vx);
+            }
+
+            // Dot Collision
+            const pgx = Math.floor((player.x - ox)/TILE), pgy = Math.floor((player.y - oy)/TILE);
+            const dotIdx = dots.findIndex(dt => dt.x === pgx && dt.y === pgy);
+            if (dotIdx > -1) {
+                dots.splice(dotIdx, 1);
+                gameState.score += 10;
+                player.bonusSpeed = Math.min(4, player.bonusSpeed + 0.1);
+                playTone(600 + (gameState.score % 500), 'sine', 0.05, 0.01);
+                createExplosion(player.x, player.y, '#fff', 2);
+            }
+
+            // Core Movement & Collision
+            if (core.progress <= 0) {
+                const dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+                const valid = dirs.filter(d => MAP[core.gy+d.y]?.[core.gx+d.x] === 0);
+                const next = valid[Math.floor(Math.random()*valid.length)];
+                core.dx = next?.x || 0; core.dy = next?.y || 0;
+            }
+            core.progress += CONFIG.initialCoreSpeed + (gameState.stage * 0.005);
+            if (core.progress >= 1) { core.gx += core.dx; core.gy += core.dy; core.progress = 0; }
+
+            const cx = ox + (core.gx + core.dx * core.progress) * TILE + TILE/2;
+            const cy = oy + (core.gy + core.dy * core.progress) * TILE + TILE/2;
+            if (Math.hypot(player.x - cx, player.y - cy) < TILE * 0.6) {
+                gameState.stage++;
+                gameState.score += 500;
+                playTone(1000, 'sine', 0.5, 0.1);
+                createExplosion(cx, cy, '#fff', 30);
+                spawnStage();
+            }
+
+            // Ghost Logic
+            if (gameState.stunTimer > 0) gameState.stunTimer--;
+            if (gameState.invincibility > 0) gameState.invincibility--;
+
+            ghosts.forEach(g => {
+                if (gameState.stunTimer <= 0) {
+                    if (g.p <= 0) {
+                        const ds = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+                        const valid = ds.filter(d => MAP[g.gy+d.y]?.[g.gx+d.x] === 0);
+                        g.dx = valid[Math.floor(Math.random()*valid.length)]?.x || 0;
+                        g.dy = valid[Math.floor(Math.random()*valid.length)]?.y || 0;
+                    }
+                    g.p += g.s;
+                    if (g.p >= 1) { g.gx += g.dx; g.gy += g.dy; g.p = 0; }
+                }
+
+                const gx = ox + (g.gx + g.dx * g.p) * TILE + TILE/2;
+                const gy = oy + (g.gy + g.dy * g.p) * TILE + TILE/2;
+                if (Math.hypot(player.x - gx, player.y - gy) < TILE*0.5 && gameState.stunTimer <= 0 && gameState.invincibility <= 0) {
+                    gameState.lives--;
+                    gameState.shake = 20;
+                    gameState.invincibility = 120;
+                    playTone(150, 'sawtooth', 0.5, 0.2);
+                    updateLivesUI(true);
+                    if (gameState.lives <= 0) endGame();
+                }
+            });
+
+            // Particles
+            gameState.particles.forEach((p, i) => {
+                p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+                if (p.life <= 0) gameState.particles.splice(i, 1);
+            });
+
+            if (gameState.shake > 0) gameState.shake--;
+
+            // Update UI
+            document.getElementById('score-val').innerText = gameState.score.toString().padStart(4, '0');
+            document.getElementById('speed-bar').style.width = (player.bonusSpeed / 4 * 100) + "%";
+        }
+
+        function draw() {
+            ctx.save();
+            if (gameState.shake > 0) ctx.translate((Math.random()-0.5)*gameState.shake, (Math.random()-0.5)*gameState.shake);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const ox = (canvas.width - CONFIG.mapW * TILE) / 2;
+            const oy = (canvas.height - CONFIG.mapH * TILE) / 2;
+
+            if (gameState.active) {
+                // Draw Map
+                ctx.lineWidth = 1;
+                for (let y=0; y<CONFIG.mapH; y++) {
+                    for (let x=0; x<CONFIG.mapW; x++) {
+                        if (MAP[y][x] === 1) {
+                            ctx.strokeStyle = 'rgba(0, 255, 255, 0.2)';
+                            ctx.strokeRect(ox+x*TILE+4, oy+y*TILE+4, TILE-8, TILE-8);
+                        }
+                    }
+                }
+
+                // Dots
+                ctx.fillStyle = "#fff";
+                dots.forEach(d => {
+                    ctx.beginPath(); ctx.arc(ox + d.x*TILE + TILE/2, oy + d.y*TILE + TILE/2, 2, 0, 7); ctx.fill();
+                });
+
+                // Particles
+                gameState.particles.forEach(p => {
+                    ctx.globalAlpha = p.life;
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(p.x, p.y, 3, 3);
+                });
+                ctx.globalAlpha = 1;
+
+                // Core
+                const cx = ox + (core.gx + core.dx * core.progress) * TILE + TILE/2;
+                const cy = oy + (core.gy + core.dy * core.progress) * TILE + TILE/2;
+                const glow = Math.sin(Date.now()*0.01)*5;
+                ctx.shadowBlur = 15 + glow; ctx.shadowColor = "#fff";
+                ctx.fillStyle = "#fff";
+                ctx.beginPath(); ctx.arc(cx, cy, 10, 0, 7); ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // Player
+                if (gameState.invincibility % 10 < 5) {
+                    ctx.save();
+                    ctx.translate(player.x, player.y);
+                    ctx.rotate(player.angle);
+                    ctx.fillStyle = "#ffff00";
+                    const mouth = 0.2 * Math.sin(Date.now()*0.02) + 0.2;
+                    ctx.beginPath(); ctx.arc(0, 0, TILE*0.4, mouth, 2*Math.PI - mouth);
+                    ctx.lineTo(0,0); ctx.fill();
+                    ctx.restore();
+                }
+
+                // Ghosts
+                ghosts.forEach(g => {
+                    const gx = ox + (g.gx + g.dx * g.p) * TILE + TILE/2;
+                    const gy = oy + (g.gy + g.dy * g.p) * TILE + TILE/2;
+                    ctx.fillStyle = gameState.stunTimer > 0 ? "#4444ff" : g.c;
+                    ctx.beginPath(); ctx.arc(gx, gy, TILE*0.35, Math.PI, 0);
+                    ctx.lineTo(gx+TILE*0.35, gy+TILE*0.35); ctx.lineTo(gx-TILE*0.35, gy+TILE*0.35); ctx.fill();
+                    // Eyes
+                    ctx.fillStyle = "white";
+                    ctx.fillRect(gx-6, gy-4, 4, 4); ctx.fillRect(gx+2, gy-4, 4, 4);
+                });
+            }
+
+            // Target Crosshair
+            ctx.strokeStyle = gameState.stunTimer > 0 ? "#fbbf24" : "rgba(0, 255, 255, 0.5)";
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath(); ctx.arc(player.sx, player.sy, 50, 0, 7); ctx.stroke();
+            ctx.setLineDash([]);
+            
+            ctx.restore();
+            requestAnimationFrame(draw);
+        }
+
+        function updateLivesUI(isLoss = false) {
+            const container = document.getElementById('lives-container');
+            container.innerHTML = '';
+            for (let i = 0; i < CONFIG.maxLives; i++) {
+                const heart = document.createElement('span');
+                heart.className = 'life-heart';
+                heart.innerHTML = '❤';
+                if (i >= gameState.lives) heart.className = 'life-heart life-lost';
+                container.appendChild(heart);
+            }
         }
 
         function startGame() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
             startMusic();
-            grid = JSON.parse(JSON.stringify(MAP_DATA));
-            score = 0; lives = 3; stunTimer = 0; invincibilityFrames = 0;
+            gameState.active = true;
+            gameState.score = 0;
+            gameState.lives = CONFIG.maxLives;
+            gameState.stage = 1;
+            gameState.invincibility = 0;
+            document.getElementById('hi-score').innerText = gameState.hiScore.toString().padStart(4, '0');
             updateLivesUI();
-            resetPositions();
-            spawnWinCore();
-            gameActive = true;
+            resetPlayer();
+            spawnStage();
             overlay.style.display = 'none';
-            document.getElementById('game-hud').style.display = 'flex';
+            hud.style.display = 'flex';
         }
 
-        function isWall(x, y) {
-            const ox = (canvas.width - MAP_W * TILE) / 2;
-            const oy = (canvas.height - MAP_H * TILE) / 2;
-            const gx = Math.floor((x - ox) / TILE), gy = Math.floor((y - oy) / TILE);
-            return gy < 0 || gy >= MAP_H || gx < 0 || gx >= MAP_W || grid[gy][gx] === 1;
-        }
-
-        function triggerWin() {
-            gameActive = false;
-            overlayTitle.innerText = "YOU WIN!";
-            overlayTitle.className = "text-6xl font-bold victory-glow mb-6 italic tracking-tighter";
-            overlayMsgHeader.innerText = "CORE SECURED";
-            overlayMsgBody.innerHTML = `Excellent work! You intercepted the Data Core and completed the scan.<br><br>Final Score: <span class="text-white">${score}</span>`;
+        function endGame() {
+            gameState.active = false;
+            if (gameState.score > gameState.hiScore) {
+                gameState.hiScore = gameState.score;
+                localStorage.setItem('coreHuntHiScore', gameState.hiScore);
+            }
             overlay.style.display = 'flex';
-            startBtn.innerText = "PLAY AGAIN";
-            playSfx(1200, 'sine', 0.8);
-        }
-
-        function triggerLoss() {
-            gameActive = false;
-            overlayTitle.innerText = "YOU LOST";
-            overlayTitle.className = "text-6xl font-bold loss-glow mb-6 italic tracking-tighter";
-            overlayMsgHeader.innerText = "SYSTEM BREACH";
-            overlayMsgBody.innerHTML = `The security ghosts overwhelmed your systems! The connection was severed.<br><br>Final Score: <span class="text-white">${score}</span>`;
-            overlay.style.display = 'flex';
-            startBtn.innerText = "RE-CALIBRATE";
-            playSfx(150, 'sawtooth', 0.6);
-        }
-
-        function handleGhostCollision() {
-            if (invincibilityFrames > 0) return;
-            lives--;
-            updateLivesUI();
-            playSfx(200, 'sawtooth', 0.3);
-            
-            if (lives <= 0) {
-                triggerLoss();
-            } else {
-                invincibilityFrames = 120; // 2 seconds of safety
-                resetPositions();
-            }
-        }
-
-        function update(time) {
-            if (!gameActive) return;
-
-            const ox = (canvas.width - MAP_W * TILE) / 2;
-            const oy = (canvas.height - MAP_H * TILE) / 2;
-
-            if (invincibilityFrames > 0) invincibilityFrames--;
-
-            handSmooth.x += (handPos.x - handSmooth.x) * 0.25;
-            handSmooth.y += (handPos.y - handSmooth.y) * 0.25;
-
-            const dx = handSmooth.x - pacman.x, dy = handSmooth.y - pacman.y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist > 8) {
-                const spd = pacman.speed + pacman.bonus;
-                const vx = (dx / dist) * spd, vy = (dy / dist) * spd;
-                if (!isWall(pacman.x + vx, pacman.y)) pacman.x += vx;
-                if (!isWall(pacman.x, pacman.y + vy)) pacman.y += vy;
-                pacman.angle = Math.atan2(vy, vx);
-            }
-
-            // Core Wandering Logic
-            if (targetCore.active) {
-                if (targetCore.p <= 0) {
-                    const directions = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
-                    const valid = directions.filter(d => {
-                        const nx = targetCore.gx + d.x, ny = targetCore.gy + d.y;
-                        return ny >= 0 && ny < MAP_H && nx >= 0 && nx < MAP_W && grid[ny][nx] !== 1;
-                    });
-                    const sameDir = valid.find(v => v.x === targetCore.d.x && v.y === targetCore.d.y);
-                    if (sameDir && Math.random() > 0.3) {
-                        targetCore.d = sameDir;
-                    } else {
-                        targetCore.d = valid[Math.floor(Math.random() * valid.length)] || {x:0,y:0};
-                    }
-                }
-                
-                targetCore.p += targetCore.speed;
-                if (targetCore.p >= 1) {
-                    targetCore.gx += targetCore.d.x;
-                    targetCore.gy += targetCore.d.y;
-                    targetCore.p = 0;
-                }
-
-                const coreX = ox + (targetCore.gx + targetCore.d.x * targetCore.p) * TILE + TILE/2;
-                const coreY = oy + (targetCore.gy + targetCore.d.y * targetCore.p) * TILE + TILE/2;
-
-                const distToCore = Math.sqrt((pacman.x - coreX)**2 + (pacman.y - coreY)**2);
-                if (distToCore < TILE * 0.6) {
-                    triggerWin();
-                    return;
-                }
-            }
-
-            const gx = Math.floor((pacman.x - ox) / TILE), gy = Math.floor((pacman.y - oy) / TILE);
-            if (gy >= 0 && gy < MAP_H && gx >= 0 && gx < MAP_W && grid[gy][gx] === 0) {
-                grid[gy][gx] = -2;
-                score += 10;
-                pacman.bonus = Math.min(5, pacman.bonus + 0.15);
-                playSfx(800 + (score % 200), 'sine', 0.05, 0.01);
-            }
-
-            if (stunTimer > 0) stunTimer--;
-
-            ghosts.forEach(g => {
-                if (stunTimer <= 0) {
-                    if (g.p <= 0) {
-                        const ds = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
-                        const valid = ds.filter(d => {
-                            const nx = g.gx+d.x, ny = g.gy+d.y;
-                            return ny>=0 && ny<MAP_H && nx>=0 && nx<MAP_W && grid[ny][nx]!==1;
-                        });
-                        g.d = valid[Math.floor(Math.random()*valid.length)] || {x:0,y:0};
-                    }
-                    g.p += g.s;
-                    if (g.p >= 1) { g.gx += g.d.x; g.gy += g.d.y; g.p = 0; }
-                }
-
-                const gsx = ox + (g.gx + g.d.x * g.p) * TILE + TILE/2;
-                const gsy = oy + (g.gy + g.d.y * g.p) * TILE + TILE/2;
-                if (Math.sqrt((pacman.x-gsx)**2 + (pacman.y-gsy)**2) < TILE*0.4 && stunTimer <= 0) {
-                    handleGhostCollision();
-                }
-            });
-
-            document.getElementById('score-val').innerText = score.toString().padStart(4, '0');
-            document.getElementById('speed-bar').style.width = (pacman.bonus / 5 * 100) + "%";
-        }
-
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const ox = (canvas.width - MAP_W * TILE) / 2;
-            const oy = (canvas.height - MAP_H * TILE) / 2;
-
-            if (gameActive) {
-                ctx.lineWidth = 2;
-                for(let y=0; y<MAP_H; y++) {
-                    for(let x=0; x<MAP_W; x++) {
-                        const px = ox + x * TILE, py = oy + y * TILE;
-                        if (grid[y][x] === 1) {
-                            ctx.strokeStyle = 'rgba(0, 255, 255, 0.4)';
-                            ctx.strokeRect(px+6, py+6, TILE-12, TILE-12);
-                        } else if (grid[y][x] === 0) {
-                            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-                            ctx.beginPath(); ctx.arc(px+TILE/2, py+TILE/2, 2.5, 0, 7); ctx.fill();
-                        }
-                    }
-                }
-
-                if (targetCore.active) {
-                    const coreX = ox + (targetCore.gx + targetCore.d.x * targetCore.p) * TILE + TILE/2;
-                    const coreY = oy + (targetCore.gy + targetCore.d.y * targetCore.p) * TILE + TILE/2;
-                    const pulse = Math.sin(Date.now()*0.012) * 6;
-                    ctx.shadowBlur = 25 + pulse;
-                    ctx.shadowColor = "#fff";
-                    ctx.fillStyle = "#fff";
-                    ctx.beginPath(); ctx.arc(coreX, coreY, 10 + pulse/2, 0, 7); ctx.fill();
-                    ctx.shadowBlur = 0;
-                    ctx.strokeStyle = "rgba(0, 255, 255, 0.8)";
-                    ctx.beginPath(); ctx.arc(coreX, coreY, 15 + pulse, 0, 7); ctx.stroke();
-                }
-
-                if (invincibilityFrames % 10 < 5) {
-                    ctx.save();
-                    ctx.translate(pacman.x, pacman.y);
-                    ctx.rotate(pacman.angle);
-                    ctx.fillStyle = '#ff0';
-                    const m = 0.25 * Math.sin(Date.now()*0.018) + 0.25;
-                    ctx.beginPath(); ctx.arc(0, 0, TILE*0.42, m, 6.28-m);
-                    ctx.lineTo(0,0); ctx.fill();
-                    ctx.restore();
-                }
-
-                ghosts.forEach(g => {
-                    const gsx = ox + (g.gx + g.d.x * g.p) * TILE + TILE/2;
-                    const gsy = oy + (g.gy + g.d.y * g.p) * TILE + TILE/2;
-                    ctx.fillStyle = stunTimer > 0 ? '#44f' : g.c;
-                    ctx.beginPath(); ctx.arc(gsx, gsy, TILE*0.38, Math.PI, 0);
-                    ctx.lineTo(gsx+TILE*0.38, gsy+TILE*0.38); 
-                    ctx.lineTo(gsx-TILE*0.38, gsy+TILE*0.38); ctx.fill();
-                });
-            }
-
-            ctx.strokeStyle = stunTimer > 0 ? '#fbbf24' : 'rgba(0, 255, 255, 0.6)';
-            ctx.lineWidth = 3;
-            ctx.setLineDash([8, 4]);
-            ctx.beginPath(); ctx.arc(handSmooth.x, handSmooth.y, 45, 0, 7); ctx.stroke();
-            ctx.setLineDash([]);
-            
-            requestAnimationFrame(draw);
+            document.getElementById('overlay-title').innerText = "SYSTEM FAILURE";
+            document.getElementById('overlay-title').classList.add('text-red-500');
+            document.getElementById('overlay-msg').innerHTML = `MISSION TERMINATED.<br>FINAL SCORE: <span class="text-white text-lg">${gameState.score}</span><br>STAGE REACHED: ${gameState.stage}`;
+            startBtn.innerText = "REBOOT SYSTEM";
         }
 
         startBtn.onclick = startGame;
-        
-        const mainLoop = (time) => {
-            update(time);
-            requestAnimationFrame(mainLoop);
+        document.getElementById('audio-toggle').onclick = () => {
+            musicMuted = !musicMuted;
+            document.getElementById('speaker-icon').style.fill = musicMuted ? '#475569' : 'white';
         };
-        requestAnimationFrame(mainLoop);
+
+        setInterval(update, 1000/60);
         draw();
     </script>
 </body>
