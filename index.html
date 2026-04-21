@@ -108,6 +108,8 @@
         .victory-glow { color: #fff; text-shadow: 0 0 20px #0ff; animation: pulse 1s infinite alternate; }
         .loss-glow { color: #ff4444; text-shadow: 0 0 20px #ff0000; }
         
+        .life-heart { color: #ff4444; text-shadow: 0 0 10px #f00; display: inline-block; margin-left: 5px; }
+        
         @keyframes pulse { from { opacity: 0.7; } to { opacity: 1; } }
     </style>
 </head>
@@ -118,11 +120,20 @@
 
     <div class="ui-layer">
         <div class="hud" id="game-hud" style="display:none;">
-            <div>
-                <p class="text-[10px] text-cyan-400 font-bold mb-1 tracking-widest">STREAK</p>
-                <p id="score-val" class="retro-font text-white text-lg">0000</p>
+            <div class="flex gap-6">
+                <div>
+                    <p class="text-[10px] text-cyan-400 font-bold mb-1 tracking-widest uppercase">Score</p>
+                    <p id="score-val" class="retro-font text-white text-lg">0000</p>
+                </div>
+                <div>
+                    <p class="text-[10px] text-red-400 font-bold mb-1 tracking-widest uppercase">System Integrity</p>
+                    <div id="lives-container" class="text-lg">
+                        <span class="life-heart">❤</span><span class="life-heart">❤</span><span class="life-heart">❤</span>
+                    </div>
+                </div>
             </div>
-            <div class="text-right">
+            <div class="text-right flex flex-col items-end">
+                <button id="audio-toggle" class="text-[9px] text-slate-400 mb-2 pointer-events-auto hover:text-cyan-400">AUDIO: ON</button>
                 <p class="text-[10px] text-yellow-400 font-bold mb-1 tracking-widest">BOOST</p>
                 <div class="w-24 h-2 bg-slate-800 rounded-full overflow-hidden border border-white/10">
                     <div id="speed-bar" class="h-full bg-cyan-400 transition-all duration-300" style="width: 0%"></div>
@@ -151,8 +162,13 @@
     </div>
 
     <script>
+        // --- AUDIO ENGINE ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let musicActive = true;
+        let bgMusicTimer = null;
+
         function playSfx(f, t, d, v=0.05) {
+            if (!musicActive) return;
             try {
                 const o = audioCtx.createOscillator();
                 const g = audioCtx.createGain();
@@ -164,6 +180,28 @@
             } catch(e) {}
         }
 
+        // Procedural Background Music
+        function startMusic() {
+            if (bgMusicTimer) return;
+            const sequence = [220, 247, 261, 293]; // Bass notes
+            let step = 0;
+            bgMusicTimer = setInterval(() => {
+                if (gameActive && musicActive) {
+                    const freq = sequence[step % sequence.length];
+                    playSfx(freq, 'triangle', 0.4, 0.02);
+                    if (step % 4 === 0) playSfx(80, 'sine', 0.2, 0.05); // Kick
+                    step++;
+                }
+            }, 300);
+        }
+
+        document.getElementById('audio-toggle').onclick = (e) => {
+            musicActive = !musicActive;
+            e.target.innerText = `AUDIO: ${musicActive ? 'ON' : 'OFF'}`;
+            e.target.classList.toggle('text-slate-400', !musicActive);
+            e.target.classList.toggle('text-cyan-400', musicActive);
+        };
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const video = document.getElementById('video-preview');
@@ -174,12 +212,15 @@
         const overlayTitle = document.getElementById('overlay-title');
         const overlayMsgHeader = document.getElementById('msg-header');
         const overlayMsgBody = document.getElementById('msg-body');
+        const livesContainer = document.getElementById('lives-container');
 
         let gameActive = false;
         let score = 0;
+        let lives = 3;
         let handPos = { x: 0, y: 0 };
         let handSmooth = { x: 0, y: 0 };
         let stunTimer = 0;
+        let invincibilityFrames = 0;
 
         const MAP_W = 13, MAP_H = 9;
         const MAP_DATA = [
@@ -197,16 +238,7 @@
         let TILE = 40;
 
         const pacman = { x: 0, y: 0, speed: 4.5, angle: 0, bonus: 0 };
-        
-        // Target Core now follows grid logic like ghosts for better "wandering"
-        const targetCore = { 
-            gx: 1, gy: 1, 
-            d: {x:0, y:0}, 
-            p: 0, 
-            speed: 0.04, 
-            active: false 
-        };
-        
+        const targetCore = { gx: 1, gy: 1, d: {x:0, y:0}, p: 0, speed: 0.04, active: false };
         let ghosts = [];
 
         function resize() {
@@ -285,6 +317,7 @@
             const oy = (canvas.height - MAP_H * TILE) / 2;
             pacman.x = ox + (6 * TILE) + TILE/2;
             pacman.y = oy + (4 * TILE) + TILE/2;
+            pacman.bonus = 0;
             handSmooth = { ...pacman };
             ghosts = [
                 { gx: 1, gy: 1, c: '#f00', p: 0, d: {x:0,y:0}, s: 0.045 },
@@ -292,10 +325,23 @@
             ];
         }
 
+        function updateLivesUI() {
+            livesContainer.innerHTML = '';
+            for (let i = 0; i < lives; i++) {
+                const s = document.createElement('span');
+                s.className = 'life-heart';
+                s.innerText = '❤';
+                livesContainer.appendChild(s);
+            }
+            if (lives === 0) livesContainer.innerText = 'CRITICAL FAILURE';
+        }
+
         function startGame() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
+            startMusic();
             grid = JSON.parse(JSON.stringify(MAP_DATA));
-            score = 0; pacman.bonus = 0; stunTimer = 0;
+            score = 0; lives = 3; stunTimer = 0; invincibilityFrames = 0;
+            updateLivesUI();
             resetPositions();
             spawnWinCore();
             gameActive = true;
@@ -326,10 +372,24 @@
             overlayTitle.innerText = "YOU LOST";
             overlayTitle.className = "text-6xl font-bold loss-glow mb-6 italic tracking-tighter";
             overlayMsgHeader.innerText = "SYSTEM BREACH";
-            overlayMsgBody.innerHTML = `The security ghosts caught you! The connection was severed before the scan finished.<br><br>Final Score: <span class="text-white">${score}</span>`;
+            overlayMsgBody.innerHTML = `The security ghosts overwhelmed your systems! The connection was severed.<br><br>Final Score: <span class="text-white">${score}</span>`;
             overlay.style.display = 'flex';
             startBtn.innerText = "RE-CALIBRATE";
             playSfx(150, 'sawtooth', 0.6);
+        }
+
+        function handleGhostCollision() {
+            if (invincibilityFrames > 0) return;
+            lives--;
+            updateLivesUI();
+            playSfx(200, 'sawtooth', 0.3);
+            
+            if (lives <= 0) {
+                triggerLoss();
+            } else {
+                invincibilityFrames = 120; // 2 seconds of safety
+                resetPositions();
+            }
         }
 
         function update(time) {
@@ -337,6 +397,8 @@
 
             const ox = (canvas.width - MAP_W * TILE) / 2;
             const oy = (canvas.height - MAP_H * TILE) / 2;
+
+            if (invincibilityFrames > 0) invincibilityFrames--;
 
             handSmooth.x += (handPos.x - handSmooth.x) * 0.25;
             handSmooth.y += (handPos.y - handSmooth.y) * 0.25;
@@ -359,7 +421,6 @@
                         const nx = targetCore.gx + d.x, ny = targetCore.gy + d.y;
                         return ny >= 0 && ny < MAP_H && nx >= 0 && nx < MAP_W && grid[ny][nx] !== 1;
                     });
-                    // Prefer continuing in same direction, otherwise pick new one
                     const sameDir = valid.find(v => v.x === targetCore.d.x && v.y === targetCore.d.y);
                     if (sameDir && Math.random() > 0.3) {
                         targetCore.d = sameDir;
@@ -390,7 +451,7 @@
                 grid[gy][gx] = -2;
                 score += 10;
                 pacman.bonus = Math.min(5, pacman.bonus + 0.15);
-                playSfx(800 + (score % 200), 'sine', 0.05, 0.02);
+                playSfx(800 + (score % 200), 'sine', 0.05, 0.01);
             }
 
             if (stunTimer > 0) stunTimer--;
@@ -412,8 +473,7 @@
                 const gsx = ox + (g.gx + g.d.x * g.p) * TILE + TILE/2;
                 const gsy = oy + (g.gy + g.d.y * g.p) * TILE + TILE/2;
                 if (Math.sqrt((pacman.x-gsx)**2 + (pacman.y-gsy)**2) < TILE*0.4 && stunTimer <= 0) {
-                    triggerLoss();
-                    return;
+                    handleGhostCollision();
                 }
             });
 
@@ -444,27 +504,26 @@
                 if (targetCore.active) {
                     const coreX = ox + (targetCore.gx + targetCore.d.x * targetCore.p) * TILE + TILE/2;
                     const coreY = oy + (targetCore.gy + targetCore.d.y * targetCore.p) * TILE + TILE/2;
-                    
                     const pulse = Math.sin(Date.now()*0.012) * 6;
                     ctx.shadowBlur = 25 + pulse;
                     ctx.shadowColor = "#fff";
                     ctx.fillStyle = "#fff";
-                    ctx.beginPath(); 
-                    ctx.arc(coreX, coreY, 10 + pulse/2, 0, 7); 
-                    ctx.fill();
+                    ctx.beginPath(); ctx.arc(coreX, coreY, 10 + pulse/2, 0, 7); ctx.fill();
                     ctx.shadowBlur = 0;
                     ctx.strokeStyle = "rgba(0, 255, 255, 0.8)";
                     ctx.beginPath(); ctx.arc(coreX, coreY, 15 + pulse, 0, 7); ctx.stroke();
                 }
 
-                ctx.save();
-                ctx.translate(pacman.x, pacman.y);
-                ctx.rotate(pacman.angle);
-                ctx.fillStyle = '#ff0';
-                const m = 0.25 * Math.sin(Date.now()*0.018) + 0.25;
-                ctx.beginPath(); ctx.arc(0, 0, TILE*0.42, m, 6.28-m);
-                ctx.lineTo(0,0); ctx.fill();
-                ctx.restore();
+                if (invincibilityFrames % 10 < 5) {
+                    ctx.save();
+                    ctx.translate(pacman.x, pacman.y);
+                    ctx.rotate(pacman.angle);
+                    ctx.fillStyle = '#ff0';
+                    const m = 0.25 * Math.sin(Date.now()*0.018) + 0.25;
+                    ctx.beginPath(); ctx.arc(0, 0, TILE*0.42, m, 6.28-m);
+                    ctx.lineTo(0,0); ctx.fill();
+                    ctx.restore();
+                }
 
                 ghosts.forEach(g => {
                     const gsx = ox + (g.gx + g.d.x * g.p) * TILE + TILE/2;
