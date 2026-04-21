@@ -45,6 +45,7 @@
             border-radius: 8px;
             display: flex;
             justify-content: space-between;
+            align-items: center;
             z-index: 20;
         }
 
@@ -114,6 +115,18 @@
         }
 
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        #abort-warning {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #f87171;
+            font-weight: 900;
+            text-align: center;
+            z-index: 60;
+            display: none;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -122,14 +135,26 @@
     <canvas id="gameCanvas"></canvas>
 
     <div class="hud" id="game-hud" style="display:none;">
-        <div>
+        <div class="flex flex-col">
             <p class="text-[8px] text-cyan-400 mb-1 tracking-widest">UPLINK STATUS</p>
             <p id="score-val" class="text-white font-black text-lg tracking-tighter">0% SYNCED</p>
         </div>
+        
+        <div class="text-center opacity-50">
+            <p class="text-[7px] text-white tracking-widest uppercase">Double Hand Cover</p>
+            <p class="text-[7px] text-red-400 font-bold">TO ABORT</p>
+        </div>
+
         <div class="text-right">
             <p class="text-[8px] text-red-400 mb-1 tracking-widest">STABILITY</p>
-            <div id="lives-container" class="flex gap-1 justify-end"></div>
+            <div id="lives-container" class="flex gap-1 justify-end text-xl"></div>
         </div>
+    </div>
+
+    <div id="abort-warning">
+        <div class="text-4xl mb-2">⚠</div>
+        <div class="text-xs tracking-[0.3em]">EMERGENCY SHUTDOWN</div>
+        <div id="abort-progress" class="mt-2 text-2xl font-mono">0%</div>
     </div>
 
     <div class="charge-bar-container" id="charge-ui" style="display:none;">
@@ -144,7 +169,8 @@
         <p id="overlay-msg" class="text-slate-400 text-xs mb-8 uppercase tracking-widest leading-loose text-center">
             Infiltrate the mainframe.<br>
             Reach Sector 3 to unlock the <span class="text-cyan-400">Hyper-Magnet</span>.<br>
-            <span class="text-white bg-cyan-900 px-2">PINCH</span> for a 2s data-vacuum surge.
+            <span class="text-white bg-cyan-900 px-2">PINCH</span> for a 2s data-vacuum surge.<br>
+            <span class="text-red-400 border border-red-400 px-1">COVER FACE</span> with both hands to abort.
         </p>
         <button id="start-btn" class="btn" disabled>CALIBRATING...</button>
     </div>
@@ -157,7 +183,7 @@
                 { id: 1, title: "SECTOR 2: FIREWALL", dotsToWin: 22, ghostSpeed: 0.06, magnetAllowed: false },
                 { id: 2, title: "FINAL SECTOR: OVERLOAD", dotsToWin: 32, ghostSpeed: 0.08, magnetAllowed: true }
             ],
-            chargeNeeded: 8 // dots needed in Sector 3 to enable magnet
+            chargeNeeded: 8 
         };
 
         const gameState = {
@@ -171,7 +197,9 @@
             isPinching: false,
             invincibility: 0,
             handX: 0,
-            handY: 0
+            handY: 0,
+            abortCounter: 0, // Used for body-based exit
+            handsDetected: 0
         };
 
         const player = { x: 0, y: 0, angle: 0 };
@@ -193,32 +221,36 @@
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function sfx(f, type, d, v=0.1) {
-            if (audioCtx.state === 'suspended') return;
-            const o = audioCtx.createOscillator();
-            const g = audioCtx.createGain();
-            o.type = type; o.frequency.value = f;
-            g.gain.setValueAtTime(v, audioCtx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + d);
-            o.connect(g); g.connect(audioCtx.destination);
-            o.start(); o.stop(audioCtx.currentTime + d);
+            try {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const o = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                o.type = type; o.frequency.value = f;
+                g.gain.setValueAtTime(v, audioCtx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + d);
+                o.connect(g); g.connect(audioCtx.destination);
+                o.start(); o.stop(audioCtx.currentTime + d);
+            } catch(e) {}
         }
 
         const hands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${f}` });
-        hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6 });
+        hands.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.6 });
+        
         hands.onResults(results => {
-            if (results.multiHandLandmarks?.length > 0) {
+            gameState.handsDetected = results.multiHandLandmarks?.length || 0;
+            
+            if (gameState.handsDetected > 0) {
                 const lm = results.multiHandLandmarks[0];
                 gameState.handX = (1 - lm[9].x) * window.innerWidth;
                 gameState.handY = lm[9].y * window.innerHeight;
                 
                 const pinch = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
-                gameState.isPinching = pinch < 0.04;
+                gameState.isPinching = pinch < 0.05;
 
-                // Trigger Magnet Ability (Only in Level 3)
                 const currentCfg = CONFIG.sectors[gameState.sector];
                 if (gameState.isPinching && currentCfg.magnetAllowed && gameState.abilityCharge >= CONFIG.chargeNeeded && !gameState.abilityActive && gameState.active) {
                     gameState.abilityActive = true;
-                    gameState.abilityTimer = 120; // 2 seconds at 60fps
+                    gameState.abilityTimer = 120;
                     gameState.abilityCharge = 0;
                     sfx(1000, 'square', 0.3, 0.2);
                 }
@@ -229,13 +261,32 @@
                     document.getElementById('mission-text').innerText = "UPLINK READY.";
                 }
             }
+
+            // Body Abort Logic: Both hands detected and close to the center (covering face area)
+            if (gameState.handsDetected === 2 && gameState.active) {
+                const h1 = results.multiHandLandmarks[0][9];
+                const h2 = results.multiHandLandmarks[1][9];
+                // Check if hands are close to each other horizontally and near center
+                const dist = Math.abs(h1.x - h2.x);
+                if (dist < 0.3) {
+                    gameState.abortCounter++;
+                } else {
+                    gameState.abortCounter = Math.max(0, gameState.abortCounter - 2);
+                }
+            } else {
+                gameState.abortCounter = Math.max(0, gameState.abortCounter - 2);
+            }
         });
 
         async function initCam() {
             try {
                 const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-                document.getElementById('video-preview').srcObject = s;
-                const predict = async () => { await hands.send({ image: document.getElementById('video-preview') }); requestAnimationFrame(predict); };
+                const v = document.getElementById('video-preview');
+                v.srcObject = s;
+                const predict = async () => { 
+                    if (v.readyState >= 2) await hands.send({ image: v }); 
+                    requestAnimationFrame(predict); 
+                };
                 predict();
             } catch (e) {
                 document.getElementById('mission-text').innerText = "CAMERA ERROR";
@@ -256,7 +307,7 @@
         function spawnSector(index) {
             gameState.sector = index;
             gameState.dotsCollected = 0;
-            gameState.abilityCharge = 0; // Reset charge on level change
+            gameState.abilityCharge = 0;
             const cfg = CONFIG.sectors[index];
             
             dots = [];
@@ -280,7 +331,6 @@
             player.x = ox + 1 * TILE + TILE/2;
             player.y = oy + 7 * TILE + TILE/2;
 
-            // UI feedback for level unlock
             const label = document.getElementById('charge-label');
             if (cfg.magnetAllowed) {
                 label.innerText = "Magnet Offline";
@@ -293,16 +343,30 @@
 
         function update() {
             if (!gameState.active) return;
+
+            // Handle Abort UI
+            const abortUI = document.getElementById('abort-warning');
+            const abortProg = document.getElementById('abort-progress');
+            if (gameState.abortCounter > 10) {
+                abortUI.style.display = 'block';
+                const progress = Math.min(100, Math.floor((gameState.abortCounter / 90) * 100));
+                abortProg.innerText = progress + "%";
+                if (gameState.abortCounter > 90) {
+                    abortMission();
+                    return;
+                }
+            } else {
+                abortUI.style.display = 'none';
+            }
+
             const ox = (canvas.width - CONFIG.mapW * TILE) / 2;
             const oy = (canvas.height - CONFIG.mapH * TILE) / 2;
 
-            // Ability Timer
             if (gameState.abilityActive) {
                 gameState.abilityTimer--;
                 if (gameState.abilityTimer <= 0) gameState.abilityActive = false;
             }
 
-            // Player logic
             const dx = gameState.handX - player.x, dy = gameState.handY - player.y;
             const dist = Math.hypot(dx, dy);
             if (dist > 5) {
@@ -321,7 +385,6 @@
                 player.angle = Math.atan2(vy, vx);
             }
 
-            // Dots & Hyper-Magnet Logic
             dots.forEach((d, i) => {
                 const worldX = ox + d.x, worldY = oy + d.y;
                 
@@ -338,7 +401,6 @@
                     dots.splice(i, 1);
                     gameState.dotsCollected++;
                     
-                    // Only charge if level 3
                     if (CONFIG.sectors[gameState.sector].magnetAllowed && !gameState.abilityActive && gameState.abilityCharge < CONFIG.chargeNeeded) {
                         gameState.abilityCharge++;
                     }
@@ -352,7 +414,6 @@
                 }
             });
 
-            // Ghost logic
             if (gameState.invincibility > 0) gameState.invincibility--;
 
             ghosts.forEach(g => {
@@ -381,7 +442,6 @@
                 }
             });
 
-            // Update UI
             const currentLevelCfg = CONFIG.sectors[gameState.sector];
             const pct = Math.floor((gameState.dotsCollected / currentLevelCfg.dotsToWin) * 100);
             document.getElementById('score-val').innerText = `${pct}% SYNCED`;
@@ -405,7 +465,6 @@
             const oy = (canvas.height - CONFIG.mapH * TILE) / 2;
 
             if (gameState.active) {
-                // Map drawing
                 ctx.strokeStyle = "rgba(0, 255, 255, 0.2)";
                 ctx.lineWidth = 1;
                 for(let y=0; y<9; y++) {
@@ -414,7 +473,6 @@
                     }
                 }
 
-                // Hyper-Magnet FX
                 if (gameState.abilityActive) {
                     ctx.strokeStyle = "rgba(0, 255, 255, 0.6)";
                     ctx.beginPath(); ctx.arc(player.x, player.y, TILE * 3, 0, Math.PI*2); ctx.stroke();
@@ -427,20 +485,17 @@
                         }
                     });
 
-                    // Glitch
                     if (Math.random() > 0.85) {
                         ctx.fillStyle = "rgba(0, 255, 255, 0.15)";
                         ctx.fillRect(0,0, canvas.width, canvas.height);
                     }
                 }
 
-                // Fragments
                 dots.forEach(d => {
                     ctx.fillStyle = "#0ff";
                     ctx.beginPath(); ctx.arc(ox+d.x, oy+d.y, 4, 0, Math.PI*2); ctx.fill();
                 });
 
-                // Player
                 if (gameState.invincibility % 10 < 5) {
                     ctx.save();
                     ctx.translate(player.x, player.y);
@@ -461,7 +516,6 @@
                     ctx.shadowBlur = 0;
                 }
 
-                // Ghosts
                 ghosts.forEach(g => {
                     const gx = ox + (g.gx + g.dx*g.p)*TILE + TILE/2;
                     const gy = oy + (g.gy + g.dy*g.p)*TILE + TILE/2;
@@ -474,13 +528,21 @@
                 });
             }
 
-            // Hand Cursor
             const canMagnet = CONFIG.sectors[gameState.sector].magnetAllowed && gameState.abilityCharge >= CONFIG.chargeNeeded;
             const cursorColor = canMagnet ? "#0ff" : "rgba(255,255,255,0.2)";
             ctx.strokeStyle = gameState.isPinching ? "#fff" : cursorColor;
             ctx.setLineDash([5, 5]);
             ctx.beginPath(); ctx.arc(gameState.handX, gameState.handY, 40, 0, 7); ctx.stroke();
             ctx.setLineDash([]);
+
+            // Visual feedback for abort progress
+            if (gameState.abortCounter > 0) {
+                ctx.strokeStyle = "#f87171";
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.arc(canvas.width/2, canvas.height/2, 60, -Math.PI/2, (-Math.PI/2) + (Math.PI*2 * (gameState.abortCounter/90)));
+                ctx.stroke();
+            }
 
             requestAnimationFrame(draw);
         }
@@ -502,11 +564,24 @@
             gameState.lives = 3;
             gameState.abilityCharge = 0;
             gameState.abilityActive = false;
+            gameState.abortCounter = 0;
             spawnSector(0);
             updateLives();
             document.getElementById('overlay').style.display = 'none';
             document.getElementById('game-hud').style.display = 'flex';
             document.getElementById('charge-ui').style.display = 'block';
+        }
+
+        function abortMission() {
+            gameState.active = false;
+            document.getElementById('overlay').style.display = 'flex';
+            document.getElementById('overlay-title').innerText = "ABORTED";
+            document.getElementById('overlay-msg').innerText = "EMERGENCY SHUTDOWN TRIGGERED BY BODY GESTURE.";
+            document.getElementById('start-btn').innerText = "RE-INITIALIZE";
+            document.getElementById('game-hud').style.display = 'none';
+            document.getElementById('charge-ui').style.display = 'none';
+            document.getElementById('abort-warning').style.display = 'none';
+            sfx(50, 'sawtooth', 0.8, 0.3);
         }
 
         function gameOver() {
@@ -515,6 +590,8 @@
             document.getElementById('overlay-title').innerText = "LINK SEVERED";
             document.getElementById('overlay-msg').innerText = "SYSTEM COUNTERMEASURES OVERWHELMED YOU.";
             document.getElementById('start-btn').innerText = "RE-INITIALIZE";
+            document.getElementById('game-hud').style.display = 'none';
+            document.getElementById('charge-ui').style.display = 'none';
         }
 
         function winGame() {
@@ -523,6 +600,8 @@
             document.getElementById('overlay-title').innerText = "CORE SECURED";
             document.getElementById('overlay-msg').innerHTML = "SYSTEM OVERRIDDEN.<br>DATA BREACH COMPLETE.";
             document.getElementById('start-btn').innerText = "PLAY AGAIN";
+            document.getElementById('game-hud').style.display = 'none';
+            document.getElementById('charge-ui').style.display = 'none';
         }
 
         document.getElementById('start-btn').onclick = start;
