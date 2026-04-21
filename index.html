@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AR Hand-Controlled Pac-Man</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
@@ -17,6 +17,7 @@
             overflow: hidden;
             margin: 0;
             height: 100%;
+            touch-action: none;
         }
 
         #video-preview {
@@ -47,20 +48,24 @@
 
         .hud {
             position: absolute;
-            top: 40px;
-            left: 40px;
-            background: rgba(0, 20, 40, 0.7);
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 20, 40, 0.9);
             backdrop-filter: blur(10px);
-            padding: 20px;
-            border-left: 5px solid #0ff;
-            border-radius: 0 15px 15px 0;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            padding: 15px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-left: 4px solid #0ff;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         #overlay {
             position: absolute;
             inset: 0;
-            background: radial-gradient(circle, rgba(0,10,20,0.85) 0%, rgba(0,0,0,0.95) 100%);
+            background: radial-gradient(circle, rgba(0,15,30,0.95) 0%, rgba(0,0,0,1) 100%);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -68,56 +73,56 @@
             z-index: 100;
             pointer-events: auto;
             text-align: center;
+            padding: 20px;
         }
 
         .btn {
             background: rgba(0, 255, 255, 0.1);
             border: 2px solid #0ff;
             color: #0ff;
-            padding: 20px 50px;
+            padding: 15px 30px;
             font-family: 'Press Start 2P', cursive;
-            font-size: 14px;
+            font-size: 12px;
             cursor: pointer;
             transition: 0.3s;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            width: 100%;
+            max-width: 280px;
+            margin-bottom: 15px;
         }
 
-        .btn:hover {
+        .btn:active {
             background: #0ff;
             color: #000;
-            box-shadow: 0 0 30px #0ff;
         }
 
-        .scanning-line {
+        #emergency-reset {
             position: absolute;
-            width: 100%;
-            height: 3px;
-            background: #0ff;
-            box-shadow: 0 0 15px #0ff;
-            animation: scan 4s infinite linear;
-            z-index: 5;
-            opacity: 0.5;
-        }
-
-        @keyframes scan {
-            0% { top: 0; }
-            100% { top: 100%; }
+            top: 100px;
+            right: 20px;
+            background: rgba(255, 0, 0, 0.3);
+            border: 1px solid #f00;
+            color: #fff;
+            font-size: 8px;
+            padding: 5px 10px;
+            pointer-events: auto;
+            cursor: pointer;
+            border-radius: 4px;
+            text-transform: uppercase;
         }
 
         #gesture-hint {
             position: absolute;
-            bottom: 50px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0,0,0,0.9);
-            border: 2px solid #0ff;
-            padding: 12px 40px;
+            background: rgba(0,0,0,0.8);
+            border: 1px solid #0ff;
+            padding: 8px 20px;
             border-radius: 50px;
-            font-size: 14px;
+            font-size: 10px;
             color: #0ff;
             text-transform: uppercase;
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
         }
 
         .retro-font {
@@ -128,36 +133,28 @@
 <body>
 
     <video id="video-preview" autoplay playsinline></video>
-    <div class="scanning-line"></div>
-    
     <canvas id="gameCanvas"></canvas>
 
     <div class="ui-layer">
-        <div class="hud">
-            <h1 class="text-xl font-bold tracking-widest text-cyan-400 mb-2">NEON-AR PROTOCOL</h1>
-            <div class="flex gap-8">
-                <div>
-                    <p class="text-[10px] text-gray-400 font-sans">CORE_SCORE</p>
-                    <p class="retro-font text-lg text-white" id="score-val">0000</p>
-                </div>
-                <div>
-                    <p class="text-[10px] text-gray-400 font-sans">VITAL_SIGNS</p>
-                    <p class="retro-font text-lg text-pink-500" id="lives-val">3</p>
-                </div>
+        <div class="hud" id="game-hud" style="display:none;">
+            <div>
+                <h1 class="text-[10px] font-bold text-cyan-400 mb-1">SCORE</h1>
+                <p class="retro-font text-sm text-white" id="score-val">0000</p>
+            </div>
+            <button id="emergency-reset" onclick="resetPositions()">Reset Pos</button>
+            <div class="text-right">
+                <h1 class="text-[10px] font-bold text-pink-500 mb-1">LIVES</h1>
+                <p class="retro-font text-sm text-pink-500" id="lives-val">3</p>
             </div>
         </div>
-
-        <div id="gesture-hint" class="font-mono">WAVE YOUR HAND TO CALIBRATE...</div>
+        <div id="gesture-hint" class="font-mono">INITIALIZING NEURAL LINK...</div>
     </div>
 
     <div id="overlay">
-        <h2 id="overlay-title" class="text-6xl font-bold text-cyan-400 mb-4 tracking-tighter italic">PAC-MAN AR</h2>
-        <p id="overlay-msg" class="text-gray-400 mb-10 max-w-lg leading-relaxed uppercase text-xs tracking-widest">
-            Game maze will float in front of your camera. <br> 
-            <span class="text-white">Move Hand</span> to drag Pac-Man. <br>
-            <span class="text-white">Open Palm</span> for Speed Boost.
-        </p>
-        <button id="start-btn" class="btn">Initiate Link</button>
+        <h2 id="overlay-title" class="text-4xl font-bold text-cyan-400 mb-4 italic tracking-tighter">PAC-MAN AR</h2>
+        <div class="w-16 h-1 bg-cyan-400 mb-8"></div>
+        <button id="start-btn" class="btn">Launch V3 Logic</button>
+        <p class="text-[10px] text-gray-500 mt-10 uppercase tracking-widest">v3.0 Rail-Lock Motion Engine</p>
     </div>
 
     <script>
@@ -189,44 +186,50 @@
         let powerMode = false;
         let powerTimer = 0;
 
-        // Scale TILE based on screen size
-        const TILE = Math.min(window.innerWidth / 20, window.innerHeight / 15);
-        const MAP_W = 17, MAP_H = 11;
+        let TILE = 0;
+        const MAP_W = 15, MAP_H = 11;
         
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+            TILE = Math.min(window.innerWidth / (MAP_W + 1), window.innerHeight / (MAP_H + 5));
         }
         window.addEventListener('resize', resize);
         resize();
 
         const rawMap = [
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-            [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
-            [1,2,1,1,0,1,1,0,1,0,1,1,0,1,1,2,1],
-            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-            [1,0,1,1,0,1,0,1,1,1,0,1,0,1,1,0,1],
-            [1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,1],
-            [1,0,1,1,0,1,0,1,1,1,0,1,0,1,1,0,1],
-            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-            [1,2,1,1,0,1,1,0,1,0,1,1,0,1,1,2,1],
-            [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+            [1,2,1,1,0,1,0,1,0,1,0,1,1,2,1],
+            [1,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
+            [1,0,1,1,0,1,1,1,1,1,0,1,1,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,0,1,1,0,1,1,1,1,1,0,1,1,0,1],
+            [1,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
+            [1,2,1,1,0,1,0,1,0,1,0,1,1,2,1],
+            [1,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
         ];
         let map = [];
 
-        const pacman = { x: canvas.width/2, y: canvas.height/2, r: TILE/2.5, angle: 0, speed: 6 };
+        const pacman = { x: 0, y: 0, r: 0, angle: 0, speed: 4.5 };
         const ghosts = [
-            { x: 0, y: 0, color: '#ff0044', speed: 2 },
-            { x: 0, y: 0, color: '#00ffff', speed: 2.5 }
+            { x: 0, y: 0, color: '#ff0044', speed: 1.5, vx: 0, vy: 0 },
+            { x: 0, y: 0, color: '#00ffff', speed: 1.8, vx: 0, vy: 0 }
         ];
 
         function resetPositions() {
-            pacman.x = canvas.width / 2;
-            pacman.y = canvas.height * 0.75;
+            const offsetX = (canvas.width - MAP_W * TILE) / 2;
+            const offsetY = (canvas.height - MAP_H * TILE) / 2;
+            pacman.r = TILE * 0.35; 
+            pacman.x = offsetX + (7 * TILE) + TILE/2;
+            pacman.y = offsetY + (9 * TILE) + TILE/2;
+            
             ghosts.forEach((g, i) => {
-                g.x = (canvas.width / 2) + (i * 150 - 75);
-                g.y = canvas.height / 3;
+                g.x = offsetX + (7 * TILE) + (i * TILE - TILE/2);
+                g.y = offsetY + (5 * TILE) + TILE/2;
+                g.vx = (Math.random() > 0.5 ? 1 : -1) * g.speed;
+                g.vy = 0;
             });
         }
 
@@ -235,76 +238,99 @@
         hands.onResults(results => {
             if (results.multiHandLandmarks?.length > 0) {
                 const lm = results.multiHandLandmarks[0];
-                // Mirror mapping
                 handPos.x = (1 - lm[9].x) * canvas.width;
                 handPos.y = lm[9].y * canvas.height;
-
-                const pinchDist = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
-                const isExtended = lm[8].y < lm[6].y && lm[12].y < lm[10].y;
-                
-                if (pinchDist < 0.05) currentGesture = 'pinch';
-                else if (isExtended) currentGesture = 'open';
-                else currentGesture = 'none';
-
-                document.getElementById('gesture-hint').innerText = `STATUS: CONNECTED [${currentGesture.toUpperCase()}]`;
-            } else {
-                document.getElementById('gesture-hint').innerText = `STATUS: SEARCHING FOR HAND...`;
+                currentGesture = lm[8].y < lm[6].y ? 'open' : 'none';
+                document.getElementById('gesture-hint').innerText = "LINK ACTIVE";
             }
         });
 
         const cam = new Camera(video, {
             onFrame: async () => { await hands.send({ image: video }); },
-            width: 1280, height: 720
+            width: 720, height: 1280
         });
         cam.start();
+
+        function isWallAt(px, py, offsetX, offsetY) {
+            const gx = Math.floor((px - offsetX) / TILE);
+            const gy = Math.floor((py - offsetY) / TILE);
+            if (gy < 0 || gy >= MAP_H || gx < 0 || gx >= MAP_W) return true;
+            return map[gy][gx] === 1;
+        }
 
         function update() {
             if (!gameActive) return;
 
+            const offsetX = (canvas.width - MAP_W * TILE) / 2;
+            const offsetY = (canvas.height - MAP_H * TILE) / 2;
+            
             const dx = handPos.x - pacman.x;
             const dy = handPos.y - pacman.y;
             const dist = Math.hypot(dx, dy);
             
-            let s = currentGesture === 'open' ? pacman.speed * 1.8 : pacman.speed;
-            if (dist > 15) {
-                pacman.x += (dx / dist) * s;
-                pacman.y += (dy / dist) * s;
+            if (dist > 5) {
+                let s = currentGesture === 'open' ? pacman.speed * 1.5 : pacman.speed;
+                const vx = (dx / dist) * s;
+                const vy = (dy / dist) * s;
+
+                // 1. PROJECTED MOVEMENT
+                let targetX = pacman.x + vx;
+                let targetY = pacman.y + vy;
+
+                // 2. RAIL ALIGNMENT (FORCE TO CENTER)
+                const gridX = Math.floor((pacman.x - offsetX) / TILE);
+                const gridY = Math.floor((pacman.y - offsetY) / TILE);
+                const centerX = offsetX + gridX * TILE + TILE/2;
+                const centerY = offsetY + gridY * TILE + TILE/2;
+
+                // 3. COLLISION WITH "SLIDING"
+                // If moving horizontally, snap Y to center
+                if (Math.abs(vx) > Math.abs(vy)) {
+                    if (!isWallAt(targetX + (vx > 0 ? pacman.r : -pacman.r), pacman.y, offsetX, offsetY)) {
+                        pacman.x = targetX;
+                        pacman.y += (centerY - pacman.y) * 0.2; // Slide to rail
+                    }
+                } else {
+                    // If moving vertically, snap X to center
+                    if (!isWallAt(pacman.x, targetY + (vy > 0 ? pacman.r : -pacman.r), offsetX, offsetY)) {
+                        pacman.y = targetY;
+                        pacman.x += (centerX - pacman.x) * 0.2; // Slide to rail
+                    }
+                }
+
                 pacman.angle = Math.atan2(dy, dx);
             }
 
-            const offsetX = (canvas.width - MAP_W * TILE) / 2;
-            const offsetY = (canvas.height - MAP_H * TILE) / 2;
+            // Scoring
             const mx = Math.floor((pacman.x - offsetX) / TILE);
             const my = Math.floor((pacman.y - offsetY) / TILE);
-
             if (map[my]?.[mx] === 0) {
-                map[my][mx] = -1; score += 10; playSfx(600, 'sine', 0.1);
+                map[my][mx] = -1; score += 10; playSfx(600, 'sine', 0.05);
             } else if (map[my]?.[mx] === 2) {
-                map[my][mx] = -1; powerMode = true; powerTimer = 400; playSfx(800, 'square', 0.4);
+                map[my][mx] = -1; powerMode = true; powerTimer = 400; playSfx(800, 'triangle', 0.3);
             }
 
+            // Ghost Movement
             ghosts.forEach(g => {
-                const gdx = pacman.x - g.x;
-                const gdy = pacman.y - g.y;
-                const gd = Math.hypot(gdx, gdy);
-                const multi = powerMode ? -0.8 : 1;
-                g.x += (gdx / gd) * g.speed * multi;
-                g.y += (gdy / gd) * g.speed * multi;
-
-                if (gd < TILE * 0.7) {
+                if (!powerMode) {
+                    const gx = Math.floor((g.x - offsetX) / TILE);
+                    const gy = Math.floor((g.y - offsetY) / TILE);
+                    const nextGX = Math.floor((g.x + g.vx * 15 - offsetX)/TILE);
+                    if (isWallAt(offsetX + nextGX * TILE + TILE/2, g.y, offsetX, offsetY)) g.vx *= -1;
+                    g.x += g.vx;
+                }
+                if (Math.hypot(pacman.x - g.x, pacman.y - g.y) < TILE * 0.6) {
                     if (powerMode) {
-                        g.x = canvas.width/2; g.y = canvas.height/2; score += 200;
-                        playSfx(1000, 'triangle', 0.2);
+                        g.x = offsetX + (7 * TILE) + TILE/2; g.y = offsetY + (5 * TILE) + TILE/2; 
+                        score += 200;
                     } else {
-                        lives--; playSfx(150, 'sawtooth', 0.6);
-                        resetPositions();
+                        lives--; resetPositions();
                         if (lives <= 0) endGame();
                     }
                 }
             });
 
             if (powerMode && --powerTimer <= 0) powerMode = false;
-            
             document.getElementById('score-val').innerText = score.toString().padStart(4, '0');
             document.getElementById('lives-val').innerText = lives;
         }
@@ -315,25 +341,22 @@
             const offsetY = (canvas.height - MAP_H * TILE) / 2;
 
             if (gameActive) {
-                // Draw Neon Maze
+                // Maze
                 for(let y=0; y<MAP_H; y++) {
                     for(let x=0; x<MAP_W; x++) {
                         const px = offsetX + x * TILE;
                         const py = offsetY + y * TILE;
                         if (map[y][x] === 1) {
-                            ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
-                            ctx.lineWidth = 3;
-                            ctx.strokeRect(px+5, py+5, TILE-10, TILE-10);
-                            ctx.fillStyle = 'rgba(0, 255, 255, 0.05)';
-                            ctx.fillRect(px+5, py+5, TILE-10, TILE-10);
+                            ctx.fillStyle = 'rgba(0, 255, 255, 0.1)';
+                            ctx.strokeStyle = '#0ff';
+                            ctx.lineWidth = 1;
+                            ctx.strokeRect(px + 4, py + 4, TILE - 8, TILE - 8);
                         } else if (map[y][x] === 0) {
-                            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                            ctx.beginPath(); ctx.arc(px+TILE/2, py+TILE/2, 3, 0, Math.PI*2); ctx.fill();
+                            ctx.fillStyle = 'white';
+                            ctx.beginPath(); ctx.arc(px+TILE/2, py+TILE/2, 2, 0, Math.PI*2); ctx.fill();
                         } else if (map[y][x] === 2) {
                             ctx.fillStyle = '#0ff';
-                            ctx.shadowBlur = 20; ctx.shadowColor = '#0ff';
-                            ctx.beginPath(); ctx.arc(px+TILE/2, py+TILE/2, 10, 0, Math.PI*2); ctx.fill();
-                            ctx.shadowBlur = 0;
+                            ctx.beginPath(); ctx.arc(px+TILE/2, py+TILE/2, TILE/4, 0, Math.PI*2); ctx.fill();
                         }
                     }
                 }
@@ -342,40 +365,20 @@
                 ctx.save();
                 ctx.translate(pacman.x, pacman.y);
                 ctx.rotate(pacman.angle);
-                ctx.fillStyle = powerMode ? '#0ff' : '#ffff00';
-                if (powerMode) { ctx.shadowBlur = 25; ctx.shadowColor = '#0ff'; }
+                ctx.fillStyle = powerMode ? '#0ff' : '#ff0';
                 ctx.beginPath();
-                const open = 0.2 * Math.sin(Date.now()*0.02) + 0.2;
-                ctx.arc(0, 0, pacman.r, open, Math.PI*2 - open);
+                const mouth = 0.25 * Math.sin(Date.now()*0.02) + 0.25;
+                ctx.arc(0, 0, pacman.r, mouth, Math.PI*2 - mouth);
                 ctx.lineTo(0,0); ctx.fill();
                 ctx.restore();
 
                 // Ghosts
                 ghosts.forEach(g => {
-                    ctx.fillStyle = powerMode ? '#2222ff' : g.color;
-                    ctx.shadowBlur = 10; ctx.shadowColor = ctx.fillStyle;
+                    ctx.fillStyle = powerMode ? '#4444ff' : g.color;
                     ctx.beginPath(); ctx.arc(g.x, g.y, pacman.r, Math.PI, 0);
                     ctx.lineTo(g.x + pacman.r, g.y + pacman.r);
                     ctx.lineTo(g.x - pacman.r, g.y + pacman.r); ctx.fill();
-                    ctx.shadowBlur = 0;
                 });
-            }
-
-            // Always Draw Hand Cursor if detected
-            if (handPos.x > 0) {
-                ctx.beginPath();
-                ctx.arc(handPos.x, handPos.y, 50, 0, Math.PI*2);
-                ctx.strokeStyle = currentGesture === 'pinch' ? '#ff0' : (currentGesture === 'open' ? '#0ff' : 'rgba(255,255,255,0.4)');
-                ctx.lineWidth = 4;
-                ctx.setLineDash([8, 12]);
-                ctx.stroke();
-                ctx.setLineDash([]);
-                
-                // Pulsing Center
-                ctx.beginPath();
-                ctx.arc(handPos.x, handPos.y, 5 + Math.sin(Date.now()*0.01)*2, 0, Math.PI*2);
-                ctx.fillStyle = ctx.strokeStyle;
-                ctx.fill();
             }
 
             requestAnimationFrame(() => { update(); draw(); });
@@ -383,20 +386,18 @@
 
         function endGame() {
             gameActive = false;
-            document.getElementById('overlay-title').innerText = "VITAL SIGNS LOST";
-            document.getElementById('overlay-msg').innerText = `Final Core Score: ${score} \n Re-initialize system?`;
-            startBtn.innerText = "Re-Sync";
             overlay.style.display = 'flex';
+            document.getElementById('overlay-title').innerText = "MISSION FAILED";
         }
 
         startBtn.onclick = () => {
             audioCtx.resume();
-            playSfx(440, 'triangle', 0.5);
             map = JSON.parse(JSON.stringify(rawMap));
             score = 0; lives = 3;
-            resetPositions();
+            resize(); resetPositions();
             gameActive = true;
             overlay.style.display = 'none';
+            document.getElementById('game-hud').style.display = 'flex';
         };
 
         draw();
